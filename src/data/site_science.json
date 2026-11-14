@@ -1,0 +1,367 @@
+{
+ "generated": "2026-11-14",
+ "sources": {
+  "nasaIllumination": "NASA GSFC PGDA Lunar Polar Illumination (AVGVISIB_75S_120M_201608 and _EARTH): average fraction of time the Sun / Earth is visible, hourly over 18.6 years, 120 m pixels. Mazarico et al. 2011, Icarus 211, 1066-1081, doi:10.1016/j.icarus.2010.10.030. https://pgda.gsfc.nasa.gov/products/69",
+  "diviner": "NASA LRO Diviner Polar Resource Product (dlre_prp_south): annual average temperature (2 cm depth), annual maximum surface temperature, and depth below which water ice is stable (sublimation < 1 kg/m2 per billion years; deeper than 2.87 m reported as none). Paige et al., UCLA / PDS Geosciences Node. https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/",
+  "craters": "Robbins (2019) Lunar Crater Database, craters >= 1 km (USGS Astrogeology). JGR Planets 124(4), 871-892, doi:10.1029/2018JE005592. https://astrogeology.usgs.gov/search/map/moon_crater_database_v1_robbins"
+ },
+ "method": {
+  "nasaIllumination": "Value at the site pixel; the range is min-max over the 3x3 pixels around it (360 m x 360 m), to show how fast it changes with a few hundred metres.",
+  "diviner": "Nearest Diviner mesh element to the site (elements are roughly 0.5-1 km). Ice figures use elements within 15 km.",
+  "craters": "Great-circle distances on a 1737.4 km sphere. \"Inside\" means the site is within the crater radius."
+ },
+ "sites": {
+  "shackleton-rim": {
+   "nasaIllumination": {
+    "sunPct": 65.9,
+    "earthPct": 51.9,
+    "sunRangePct": [
+     51.2,
+     89.6
+    ],
+    "earthRangePct": [
+     0.0,
+     53.8
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 126.1,
+    "tempMaxK": 230.7,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.25,
+    "nearestSurfaceIceKm": 4.15,
+    "icePctWithin5km": 45.8
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 5,
+    "insideCrater": null,
+    "nearestRimKm": 0.28,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "connecting-ridge": {
+   "nasaIllumination": {
+    "sunPct": 0.0,
+    "earthPct": 0.0,
+    "sunRangePct": [
+     0.0,
+     63.1
+    ],
+    "earthRangePct": [
+     0.0,
+     55.3
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 129.5,
+    "tempMaxK": 223.1,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.98,
+    "nearestSurfaceIceKm": 6.47,
+    "icePctWithin5km": 23.4
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 5,
+    "insideCrater": {
+     "diamKm": 7.35,
+     "distFromCentreKm": 3.6
+    },
+    "nearestRimKm": 0.07,
+    "largestAtLeast5kmWithin10km": 7.4
+   }
+  },
+  "malapert-massif": {
+   "nasaIllumination": {
+    "sunPct": 42.8,
+    "earthPct": 100.0,
+    "sunRangePct": [
+     39.1,
+     53.4
+    ],
+    "earthRangePct": [
+     59.6,
+     100.0
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 133.9,
+    "tempMaxK": 232.5,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.49,
+    "nearestSurfaceIceKm": 13.11,
+    "icePctWithin5km": 10.1
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 4,
+    "insideCrater": null,
+    "nearestRimKm": 1.24,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "im2-mons-mouton": {
+   "nasaIllumination": {
+    "sunPct": 46.8,
+    "earthPct": 93.1,
+    "sunRangePct": [
+     42.6,
+     47.0
+    ],
+    "earthRangePct": [
+     79.4,
+     93.4
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 127.4,
+    "tempMaxK": 227.0,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.42,
+    "nearestSurfaceIceKm": 11.57,
+    "icePctWithin5km": 39.4
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 7,
+    "insideCrater": null,
+    "nearestRimKm": 0.37,
+    "largestAtLeast5kmWithin10km": 5.7
+   }
+  },
+  "chandrayaan-3": {
+   "craters": {
+    "countAtLeast1kmWithin5km": 1,
+    "insideCrater": null,
+    "nearestRimKm": 3.55,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "change-4": {
+   "craters": {
+    "countAtLeast1kmWithin5km": 1,
+    "insideCrater": {
+     "diamKm": 181.55,
+     "distFromCentreKm": 41.22
+    },
+    "nearestRimKm": 4.03,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "apollo-11": {
+   "craters": {
+    "countAtLeast1kmWithin5km": 0,
+    "insideCrater": null,
+    "nearestRimKm": 4.85,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "apollo-17": {
+   "craters": {
+    "countAtLeast1kmWithin5km": 1,
+    "insideCrater": {
+     "diamKm": 21.64,
+     "distFromCentreKm": 3.78
+    },
+    "nearestRimKm": 6.12,
+    "largestAtLeast5kmWithin10km": 21.6
+   }
+  },
+  "nobile-rim-1": {
+   "nasaIllumination": {
+    "sunPct": 85.8,
+    "earthPct": 60.2,
+    "sunRangePct": [
+     24.6,
+     85.8
+    ],
+    "earthRangePct": [
+     42.2,
+     62.3
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 107.9,
+    "tempMaxK": 203.6,
+    "iceDepthM": 0.33,
+    "nearestIceWithin1mKm": 0.07,
+    "nearestSurfaceIceKm": 8.27,
+    "icePctWithin5km": 28.3
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 6,
+    "insideCrater": null,
+    "nearestRimKm": 0.96,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "nobile-rim-2": {
+   "nasaIllumination": {
+    "sunPct": 53.9,
+    "earthPct": 71.8,
+    "sunRangePct": [
+     45.5,
+     53.9
+    ],
+    "earthRangePct": [
+     52.3,
+     79.8
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 117.3,
+    "tempMaxK": 226.5,
+    "iceDepthM": 0.76,
+    "nearestIceWithin1mKm": 0.16,
+    "nearestSurfaceIceKm": 3.78,
+    "icePctWithin5km": 34.4
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 4,
+    "insideCrater": {
+     "diamKm": 61.19,
+     "distFromCentreKm": 29.49
+    },
+    "nearestRimKm": 0.29,
+    "largestAtLeast5kmWithin10km": 5.4
+   }
+  },
+  "haworth": {
+   "nasaIllumination": {
+    "sunPct": 75.2,
+    "earthPct": 68.3,
+    "sunRangePct": [
+     49.3,
+     75.2
+    ],
+    "earthRangePct": [
+     53.4,
+     78.9
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 96.5,
+    "tempMaxK": 173.0,
+    "iceDepthM": 0.18,
+    "nearestIceWithin1mKm": 0.24,
+    "nearestSurfaceIceKm": 11.05,
+    "icePctWithin5km": 16.1
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 4,
+    "insideCrater": null,
+    "nearestRimKm": 0.06,
+    "largestAtLeast5kmWithin10km": 11.7
+   }
+  },
+  "de-gerlache-rim-2": {
+   "nasaIllumination": {
+    "sunPct": 78.6,
+    "earthPct": 61.3,
+    "sunRangePct": [
+     42.7,
+     78.6
+    ],
+    "earthRangePct": [
+     24.5,
+     61.6
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 140.3,
+    "tempMaxK": 237.0,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.36,
+    "nearestSurfaceIceKm": 4.49,
+    "icePctWithin5km": 8.3
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 3,
+    "insideCrater": null,
+    "nearestRimKm": 0.04,
+    "largestAtLeast5kmWithin10km": 8.4
+   }
+  },
+  "peak-near-cabeus-b": {
+   "nasaIllumination": {
+    "sunPct": 61.0,
+    "earthPct": 75.5,
+    "sunRangePct": [
+     38.1,
+     61.0
+    ],
+    "earthRangePct": [
+     24.9,
+     76.7
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 111.2,
+    "tempMaxK": 195.9,
+    "iceDepthM": 0.39,
+    "nearestIceWithin1mKm": 0.13,
+    "nearestSurfaceIceKm": 5.85,
+    "icePctWithin5km": 40.8
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 7,
+    "insideCrater": null,
+    "nearestRimKm": 0.11,
+    "largestAtLeast5kmWithin10km": null
+   }
+  },
+  "slater-plain": {
+   "nasaIllumination": {
+    "sunPct": 78.0,
+    "earthPct": 52.4,
+    "sunRangePct": [
+     61.8,
+     78.0
+    ],
+    "earthRangePct": [
+     42.8,
+     60.6
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 95.5,
+    "tempMaxK": 165.7,
+    "iceDepthM": 0.19,
+    "nearestIceWithin1mKm": 0.0,
+    "nearestSurfaceIceKm": 7.09,
+    "icePctWithin5km": 33.9
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 5,
+    "insideCrater": null,
+    "nearestRimKm": 0.69,
+    "largestAtLeast5kmWithin10km": 5.6
+   }
+  },
+  "mons-mouton-plateau": {
+   "nasaIllumination": {
+    "sunPct": 80.0,
+    "earthPct": 64.3,
+    "sunRangePct": [
+     46.6,
+     80.0
+    ],
+    "earthRangePct": [
+     47.1,
+     73.9
+    ]
+   },
+   "diviner": {
+    "tempAvgK": 105.7,
+    "tempMaxK": 203.3,
+    "iceDepthM": 0.23,
+    "nearestIceWithin1mKm": 0.16,
+    "nearestSurfaceIceKm": 6.13,
+    "icePctWithin5km": 28.9
+   },
+   "craters": {
+    "countAtLeast1kmWithin5km": 11,
+    "insideCrater": null,
+    "nearestRimKm": 0.29,
+    "largestAtLeast5kmWithin10km": null
+   }
+  }
+ }
+}

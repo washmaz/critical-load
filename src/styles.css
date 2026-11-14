@@ -104,3 +104,8 @@ input[type="range"] { padding: 0; accent-color: var(--caution); }
 .smooth-vs strong { color: var(--txt); }
 .terrain-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-top: 10px; }
 .terrain-facts .metric-value { font-size: 18px; }
+
+.science { margin-top: 14px; }
+.science h3 { font-size: 0.95rem; margin: 0 0 8px; }
+.hint.warn { color: #ffb4a8; }
+.small { font-size: 0.82rem; }
