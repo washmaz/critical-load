@@ -1,0 +1,10 @@
+[
+ {"id":"shackleton-rim","name":"Shackleton rim (ridge junction)","lat":-89.684,"lon":-163.261},
+ {"id":"connecting-ridge","name":"Connecting ridge (site C1)","lat":-89.406,"lon":-136.2},
+ {"id":"malapert-massif","name":"Malapert Massif","lat":-85.98,"lon":-1.67},
+ {"id":"im2-mons-mouton","name":"IM-2 Athena (Mons Mouton)","lat":-84.7906,"lon":29.1957},
+ {"id":"chandrayaan-3","name":"Chandrayaan-3","lat":-69.373,"lon":32.319},
+ {"id":"apollo-11","name":"Apollo 11","lat":0.674,"lon":23.473},
+ {"id":"apollo-17","name":"Apollo 17","lat":20.19,"lon":30.77},
+ {"id":"change-4","name":"Chang'e 4","lat":-45.44,"lon":177.6}
+]

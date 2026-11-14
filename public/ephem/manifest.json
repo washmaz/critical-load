@@ -1,0 +1,70 @@
+{
+ "format": "hourly int16/uint16 x 0.01 deg: sunAlt, sunAz, earthAlt, earthAz",
+ "start": "2026-11-01T00:00:00Z",
+ "stepSeconds": 3600,
+ "n": 19008,
+ "frame": "MOON_ME_DE421",
+ "ephemeris": "JPL DE421 (de421.bsp) + moon_pa_de421_1900-2050.bpc",
+ "radiusKm": 1737.4,
+ "corrections": "apparent (light-time + stellar aberration), no refraction",
+ "generated": "2026-11-14T22:19Z",
+ "tool": "tools/precompute_ephemeris.py (Skyfield)",
+ "sites": {
+  "m89.6840_m163.2610": {
+   "id": "shackleton-rim",
+   "name": "Shackleton rim (ridge junction)",
+   "lat": -89.684,
+   "lon": -163.261,
+   "file": "m89.6840_m163.2610.bin"
+  },
+  "m89.4060_m136.2000": {
+   "id": "connecting-ridge",
+   "name": "Connecting ridge (site C1)",
+   "lat": -89.406,
+   "lon": -136.2,
+   "file": "m89.4060_m136.2000.bin"
+  },
+  "m85.9800_m1.6700": {
+   "id": "malapert-massif",
+   "name": "Malapert Massif",
+   "lat": -85.98,
+   "lon": -1.67,
+   "file": "m85.9800_m1.6700.bin"
+  },
+  "m84.7906_29.1957": {
+   "id": "im2-mons-mouton",
+   "name": "IM-2 Athena (Mons Mouton)",
+   "lat": -84.7906,
+   "lon": 29.1957,
+   "file": "m84.7906_29.1957.bin"
+  },
+  "m69.3730_32.3190": {
+   "id": "chandrayaan-3",
+   "name": "Chandrayaan-3",
+   "lat": -69.373,
+   "lon": 32.319,
+   "file": "m69.3730_32.3190.bin"
+  },
+  "0.6740_23.4730": {
+   "id": "apollo-11",
+   "name": "Apollo 11",
+   "lat": 0.674,
+   "lon": 23.473,
+   "file": "0.6740_23.4730.bin"
+  },
+  "20.1900_30.7700": {
+   "id": "apollo-17",
+   "name": "Apollo 17",
+   "lat": 20.19,
+   "lon": 30.77,
+   "file": "20.1900_30.7700.bin"
+  },
+  "m45.4400_177.6000": {
+   "id": "change-4",
+   "name": "Chang'e 4",
+   "lat": -45.44,
+   "lon": 177.6,
+   "file": "m45.4400_177.6000.bin"
+  }
+ }
+}
