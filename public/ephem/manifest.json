@@ -7,7 +7,7 @@
  "ephemeris": "JPL DE421 (de421.bsp) + moon_pa_de421_1900-2050.bpc",
  "radiusKm": 1737.4,
  "corrections": "apparent (light-time + stellar aberration), no refraction",
- "generated": "2026-11-14T22:19Z",
+ "generated": "2026-11-14T22:25Z",
  "tool": "tools/precompute_ephemeris.py (Skyfield)",
  "sites": {
   "m89.6840_m163.2610": {
@@ -38,33 +38,33 @@
    "lon": 29.1957,
    "file": "m84.7906_29.1957.bin"
   },
-  "m69.3730_32.3190": {
+  "m69.3741_32.3200": {
    "id": "chandrayaan-3",
    "name": "Chandrayaan-3",
-   "lat": -69.373,
-   "lon": 32.319,
-   "file": "m69.3730_32.3190.bin"
+   "lat": -69.3741,
+   "lon": 32.32,
+   "file": "m69.3741_32.3200.bin"
   },
-  "0.6740_23.4730": {
+  "0.6742_23.4731": {
    "id": "apollo-11",
    "name": "Apollo 11",
-   "lat": 0.674,
-   "lon": 23.473,
-   "file": "0.6740_23.4730.bin"
+   "lat": 0.67416,
+   "lon": 23.47314,
+   "file": "0.6742_23.4731.bin"
   },
-  "20.1900_30.7700": {
+  "20.1911_30.7723": {
    "id": "apollo-17",
    "name": "Apollo 17",
-   "lat": 20.19,
-   "lon": 30.77,
-   "file": "20.1900_30.7700.bin"
+   "lat": 20.1911,
+   "lon": 30.7723,
+   "file": "20.1911_30.7723.bin"
   },
-  "m45.4400_177.6000": {
+  "m45.4562_177.5885": {
    "id": "change-4",
    "name": "Chang'e 4",
-   "lat": -45.44,
-   "lon": 177.6,
-   "file": "m45.4400_177.6000.bin"
+   "lat": -45.4562,
+   "lon": 177.5885,
+   "file": "m45.4562_177.5885.bin"
   }
  }
 }
