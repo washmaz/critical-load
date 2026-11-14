@@ -37,6 +37,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.28,
     "largestAtLeast5kmWithin10km": null
+   },
+   "validation": {
+    "oursSunPct": 83.5,
+    "nasaSunPct": 65.9,
+    "diffSun": 17.6,
+    "oursEarthPct": 47.6,
+    "nasaEarthPct": 51.9,
+    "diffEarth": -4.3
    }
   },
   "connecting-ridge": {
@@ -68,6 +76,14 @@
     },
     "nearestRimKm": 0.07,
     "largestAtLeast5kmWithin10km": 7.4
+   },
+   "validation": {
+    "oursSunPct": 59.6,
+    "nasaSunPct": 0.0,
+    "diffSun": 59.6,
+    "oursEarthPct": 39.0,
+    "nasaEarthPct": 0.0,
+    "diffEarth": 39.0
    }
   },
   "malapert-massif": {
@@ -96,6 +112,14 @@
     "insideCrater": null,
     "nearestRimKm": 1.24,
     "largestAtLeast5kmWithin10km": null
+   },
+   "validation": {
+    "oursSunPct": 43.3,
+    "nasaSunPct": 42.8,
+    "diffSun": 0.5,
+    "oursEarthPct": 100.0,
+    "nasaEarthPct": 100.0,
+    "diffEarth": 0.0
    }
   },
   "im2-mons-mouton": {
@@ -124,6 +148,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.37,
     "largestAtLeast5kmWithin10km": 5.7
+   },
+   "validation": {
+    "oursSunPct": 46.6,
+    "nasaSunPct": 46.8,
+    "diffSun": -0.2,
+    "oursEarthPct": 81.5,
+    "nasaEarthPct": 93.1,
+    "diffEarth": -11.6
    }
   },
   "chandrayaan-3": {
@@ -190,6 +222,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.96,
     "largestAtLeast5kmWithin10km": null
+   },
+   "validation": {
+    "oursSunPct": 85.5,
+    "nasaSunPct": 85.8,
+    "diffSun": -0.3,
+    "oursEarthPct": 55.3,
+    "nasaEarthPct": 60.2,
+    "diffEarth": -4.9
    }
   },
   "nobile-rim-2": {
@@ -221,6 +261,14 @@
     },
     "nearestRimKm": 0.29,
     "largestAtLeast5kmWithin10km": 5.4
+   },
+   "validation": {
+    "oursSunPct": 54.0,
+    "nasaSunPct": 53.9,
+    "diffSun": 0.1,
+    "oursEarthPct": 75.1,
+    "nasaEarthPct": 71.8,
+    "diffEarth": 3.3
    }
   },
   "haworth": {
@@ -249,6 +297,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.06,
     "largestAtLeast5kmWithin10km": 11.7
+   },
+   "validation": {
+    "oursSunPct": 73.5,
+    "nasaSunPct": 75.2,
+    "diffSun": -1.7,
+    "oursEarthPct": 66.7,
+    "nasaEarthPct": 68.3,
+    "diffEarth": -1.6
    }
   },
   "de-gerlache-rim-2": {
@@ -277,6 +333,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.04,
     "largestAtLeast5kmWithin10km": 8.4
+   },
+   "validation": {
+    "oursSunPct": 76.7,
+    "nasaSunPct": 78.6,
+    "diffSun": -1.9,
+    "oursEarthPct": 55.9,
+    "nasaEarthPct": 61.3,
+    "diffEarth": -5.4
    }
   },
   "peak-near-cabeus-b": {
@@ -305,6 +369,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.11,
     "largestAtLeast5kmWithin10km": null
+   },
+   "validation": {
+    "oursSunPct": 59.9,
+    "nasaSunPct": 61.0,
+    "diffSun": -1.1,
+    "oursEarthPct": 69.0,
+    "nasaEarthPct": 75.5,
+    "diffEarth": -6.5
    }
   },
   "slater-plain": {
@@ -333,6 +405,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.69,
     "largestAtLeast5kmWithin10km": 5.6
+   },
+   "validation": {
+    "oursSunPct": 84.6,
+    "nasaSunPct": 78.0,
+    "diffSun": 6.6,
+    "oursEarthPct": 53.7,
+    "nasaEarthPct": 52.4,
+    "diffEarth": 1.3
    }
   },
   "mons-mouton-plateau": {
@@ -361,6 +441,14 @@
     "insideCrater": null,
     "nearestRimKm": 0.29,
     "largestAtLeast5kmWithin10km": null
+   },
+   "validation": {
+    "oursSunPct": 77.2,
+    "nasaSunPct": 80.0,
+    "diffSun": -2.8,
+    "oursEarthPct": 62.9,
+    "nasaEarthPct": 64.3,
+    "diffEarth": -1.4
    }
   }
  }
