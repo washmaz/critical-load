@@ -1,7 +1,7 @@
 import React from 'react';
 import { fmtShortUTC, fmtDur, fmtPct, DAY } from '../format.js';
 
-const COLORS = { GO: '#5bd38a', CAUTION: '#ffb020', 'NO-GO': '#ff6b6b' };
+const COLORS = { GO: '#5bd38a', CAUTION: 'url(#slipCaution)', 'NO-GO': 'url(#slipNogo)' };
 const W = 1000, H = 64, PAD = 30;
 
 // One coloured bar per candidate landing date across the ± slip window.
@@ -29,6 +29,15 @@ export default function SlipWindow({ analysis, onPick }) {
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H + 22}`} className="slip" role="img" aria-label="Viability of each candidate landing date">
+        <defs>
+          {/* patterns as well as colours, so the bar reads without colour vision: GO solid, CAUTION dotted, NO-GO hatched */}
+          <pattern id="slipCaution" width="6" height="6" patternUnits="userSpaceOnUse">
+            <rect width="6" height="6" fill="#ffb020" /><circle cx="3" cy="3" r="1.1" fill="#7a4d00" />
+          </pattern>
+          <pattern id="slipNogo" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="6" height="6" fill="#ff6b6b" /><rect width="2" height="6" fill="#7a1f1f" />
+          </pattern>
+        </defs>
         {scan.map((c) => (
           <rect key={c.t} x={x(c.t) - w / 2} y={8} width={w + 0.6} height={H - 16} fill={COLORS[c.verdict.status]}
             opacity="0.85" onClick={() => onPick(c.t)} style={{ cursor: 'pointer' }}>
@@ -47,7 +56,7 @@ export default function SlipWindow({ analysis, onPick }) {
           <text key={ms} x={x(ms)} y={H + 18} className="axis" textAnchor="middle">{fmtShortUTC(ms).replace(/ \d\d:\d\d$/, '')}</text>
         ))}
       </svg>
-      <p className="hint">Each bar is a possible landing time (±{opts.slipDays} days around your target, dashed line). Click a bar to load that date.</p>
+      <p className="hint">Solid green = GO, dotted amber = CAUTION, hatched red = NO-GO. Each bar is a possible landing time (±{opts.slipDays} days around your target, dashed line). Click a bar to load that date.</p>
       <h3>Recommended landing dates in this window</h3>
       <ol className="best">
         {best.map((b) => {

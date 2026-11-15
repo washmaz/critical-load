@@ -9,6 +9,8 @@ import SkyDome from './components/SkyDome.jsx';
 import Timeline from './components/Timeline.jsx';
 import SlipWindow from './components/SlipWindow.jsx';
 import SiteCompare from './components/SiteCompare.jsx';
+import PolarMap from './components/PolarMap.jsx';
+import TimeBar from './components/TimeBar.jsx';
 import { fmtUTC, fmtShortUTC, fmtDur, fmtPct, fmtLat, fmtLon, toInputUTC, fromInputUTC, relTime, HOUR, DAY } from './format.js';
 
 const SLIP_OPTIONS = [0, 3, 7, 14, 30, 90];
@@ -128,14 +130,18 @@ export default function App() {
           <h1>Lunar Landing Site Navigator</h1>
           <p className="tagline">Is there power? Can we talk to Earth? For how long? And does it still work if the launch slips?</p>
         </div>
-        <button className="ghost" onClick={() => setShowAbout((x) => !x)}>{showAbout ? 'Close' : 'How it works'}</button>
+        <div className="top-actions">
+          <button className="ghost" onClick={() => window.print()} title="Print or save this scenario as a PDF">Print / PDF</button>
+          <button className="ghost" onClick={() => setShowAbout((x) => !x)}>{showAbout ? 'Close' : 'How it works'}</button>
+        </div>
       </header>
 
       {showAbout && <About />}
 
       {/* ---------------- Controls ---------------- */}
-      <section className="panel controls">
-        <div className="field wide">
+      {/* ---------------- What and when (verdict comes right after) ---------------- */}
+      <section className="panel topbar">
+        <div className="field site-field">
           <label htmlFor="site">Landing site</label>
           <select id="site" value={s.siteId} onChange={(e) => set({ siteId: e.target.value })}>
             {['South pole', 'Artemis III regions', 'Other sites'].map((g) => (
@@ -161,9 +167,13 @@ export default function App() {
           {s.siteId === 'custom' && <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={hasTerrain} />}
         </div>
         <div className="field">
-          <label htmlFor="date">Target landing (UTC)</label>
-          <input id="date" type="datetime-local" value={toInputUTC(s.landing)}
-            onChange={(e) => { const ms = fromInputUTC(e.target.value); if (ms) set({ landing: ms }); }} />
+          <label htmlFor="date">Target landing</label>
+          <div className="utc-input">
+            <input id="date" type="datetime-local" value={toInputUTC(s.landing)}
+              onChange={(e) => { const ms = fromInputUTC(e.target.value); if (ms) set({ landing: ms }); }} />
+            <span className="utc-tag">UTC</span>
+          </div>
+          <p className="hint small">{fmtUTC(s.landing)}</p>
           <div className="jumps">
             <button onClick={() => shift(-29.53)} title="One lunar day earlier">−1 lunar day</button>
             <button onClick={() => shift(-1)}>−1 d</button>
@@ -182,7 +192,14 @@ export default function App() {
             {[3, 7, 14, 29.53].map((d) => <option key={d} value={d}>{d === 29.53 ? '1 lunar day cycle (29.5 d)' : `${d} days`}</option>)}
           </select>
         </div>
-        <div className="field">
+      </section>
+
+      <details className="panel constraints">
+        <summary>
+          <span className="sum-title">Mission constraints and data options</span>
+          <span className="muted small">battery {fmtDur(s.batteryHours)} · max comms gap {fmtDur(s.commsGapHours)} · margin ±{s.marginDeg}° · {s.relay ? 'relay on' : 'no relay'} · {terrainOn ? 'real terrain' : 'smooth Moon'} · {s.ephem === 'live' ? 'live positions' : 'JPL tables'}</span>
+        </summary>
+        <div className="constraints-grid">
           <label htmlFor="margin" title="A body only counts as up when it is this far above the smooth horizon. Covers the Sun's disc, terrain we don't model yet, and model error.">
             Horizon margin: ±{s.marginDeg}°
           </label>
@@ -216,10 +233,10 @@ export default function App() {
             {' · '}<a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '399')} target="_blank" rel="noreferrer">Earth</a>
           </p>
         </div>
-      </section>
+      </details>
 
-      {/* ---------------- Verdict + dome ---------------- */}
-      <section className="grid-2">
+      {/* ---------------- Verdict + numbers | map + sky ---------------- */}
+      <section className="grid-2 main">
         <div className="panel">
           <div className={`verdict ${statusClass(v.status)}`}>
             <span className="verdict-badge">{v.status}</span>
@@ -231,24 +248,33 @@ export default function App() {
           </div>
           <ul className="reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
           {smooth && <SmoothVs smooth={smooth} real={result} />}
+          <h3 className="group-head">This mission <span className="muted small">from landing to end of mission ({s.missionDays === 29.53 ? '29.5' : s.missionDays} days)</span></h3>
           <div className="cards">
             <Metric label="Sun elevation at landing" value={`${a.series.sunAlt[i0] >= 0 ? '+' : '−'}${Math.abs(a.series.sunAlt[i0]).toFixed(2)}°`}
               sub={m.sunlitAtStart ? (m.sunset ? `Sunset ${relTime(s.landing, m.sunset)}` : 'No sunset during mission') : (m.sunrise ? `Sunrise ${relTime(s.landing, m.sunrise)}` : 'No sunrise during mission')} tone="sun" />
-            <Metric label="Sunlit" value={fmtPct(m.sunlitPct)} sub={`+ ${fmtPct(m.sunMarginalPct)} marginal`} tone="sun" />
+            <Metric label="Sunlit this mission" value={fmtPct(m.sunlitPct)} sub={`+ ${fmtPct(m.sunMarginalPct)} marginal`} tone="sun" />
             <Metric label="Longest dark stretch" value={fmtDur(m.longestDarkH)} sub={`Battery limit ${fmtDur(s.batteryHours)}`} tone={m.longestDarkH > s.batteryHours ? 'bad' : 'sun'} />
             <Metric label="Earth elevation at landing" value={`${a.series.earthAlt[i0] >= 0 ? '+' : '−'}${Math.abs(a.series.earthAlt[i0]).toFixed(2)}°`}
               sub={m.earthAtStart ? (m.earthset ? `Earthset ${relTime(s.landing, m.earthset)}` : 'No Earthset during mission') : (m.earthrise ? `Earthrise ${relTime(s.landing, m.earthrise)}` : 'Earth never rises')} tone="earth" />
-            <Metric label="Earth in view" value={fmtPct(m.earthPct)} sub={`+ ${fmtPct(m.earthMarginalPct)} marginal`} tone="earth" />
+            <Metric label="Earth in view this mission" value={fmtPct(m.earthPct)} sub={`+ ${fmtPct(m.earthMarginalPct)} marginal`} tone="earth" />
             <Metric label="Longest comms gap" value={fmtDur(m.longestCommsGapH)} sub={s.relay ? 'Relay assumed' : `Limit ${fmtDur(s.commsGapHours)}`} tone={!s.relay && m.longestCommsGapH > s.commsGapHours ? 'bad' : 'earth'} />
           </div>
           {terrainOn && <TerrainFacts t={site.terrain} />}
           {sci && <ScienceFacts sci={sci} terrain={site.terrain} />}
         </div>
-        <div className="panel">
-          <h2>Sky at {fmtShortUTC(tNow)} UTC</h2>
-          <p className="hint">Drag across the timeline below to move through the mission. Lines show the paths of the Sun (solid) and Earth (dashed).</p>
-          <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
-            zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
+        <div className="side">
+          <div className="panel">
+            <h2>Where it is</h2>
+            <PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: site.lat, lon: site.lon } : null}
+              onPick={(id) => set({ siteId: id })}
+              onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); }} />
+          </div>
+          <div className="panel">
+            <h2>Sky at {fmtShortUTC(tNow)} UTC</h2>
+            <p className="hint">Press play on the time bar at the bottom, or drag across the mission timeline. Lines show the paths of the Sun (solid) and Earth (dashed).</p>
+            <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
+              zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
+          </div>
         </div>
       </section>
 
@@ -265,7 +291,7 @@ export default function App() {
 
       <section className="panel">
         <h2>Compare sites for this landing date</h2>
-        <SiteCompare rows={compareRows} currentId={s.siteId} onPick={(id) => set({ siteId: id })} />
+        <SiteCompare rows={compareRows} currentId={s.siteId} onPick={(id) => set({ siteId: id })} landing={s.landing} opts={opts} />
       </section>
 
       <footer className="foot">
@@ -281,6 +307,7 @@ export default function App() {
           Craters: <a href="https://astrogeology.usgs.gov/search/map/moon_crater_database_v1_robbins" target="_blank" rel="noreferrer">Robbins 2019 (USGS)</a> ·
           Artemis III regions: <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA (Oct 2024)</a> · Built with Vite + React.</p>
       </footer>
+      <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} site={site} />
     </div>
   );
 }
@@ -297,12 +324,17 @@ function Metric({ label, value, sub, tone }) {
 
 function SmoothVs({ smooth, real }) {
   const sm = smooth.metrics, rm = real.metrics;
-  const same = smooth.verdict.status === real.verdict.status && Math.abs(sm.sunlitPct - rm.sunlitPct) < 1 && Math.abs(sm.earthPct - rm.earthPct) < 1;
+  const sameVerdict = smooth.verdict.status === real.verdict.status;
+  const d = (a, b) => Math.abs(a - b) >= 1;
+  const changes = [];
+  if (d(sm.sunlitPct, rm.sunlitPct)) changes.push(`sunlight ${fmtPct(sm.sunlitPct)} → ${fmtPct(rm.sunlitPct)}`);
+  if (d(sm.longestDarkH, rm.longestDarkH)) changes.push(`longest dark ${fmtDur(sm.longestDarkH)} → ${fmtDur(rm.longestDarkH)}`);
+  if (d(sm.earthPct, rm.earthPct)) changes.push(`Earth in view ${fmtPct(sm.earthPct)} → ${fmtPct(rm.earthPct)}`);
   return (
-    <p className="smooth-vs">
-      {same ? 'A smooth-Moon model gives the same answer here. ' : <><strong>Terrain changes the answer.</strong> </>}
-      Smooth Moon: <strong>{smooth.verdict.status}</strong>, {fmtPct(sm.sunlitPct)} sunlit, longest dark {fmtDur(sm.longestDarkH)}, Earth in view {fmtPct(sm.earthPct)}.
-      {' '}Real terrain: <strong>{real.verdict.status}</strong>, {fmtPct(rm.sunlitPct)} sunlit, longest dark {fmtDur(rm.longestDarkH)}, Earth in view {fmtPct(rm.earthPct)}.
+    <p className={`smooth-vs ${sameVerdict ? '' : 'changed'}`}>
+      {sameVerdict
+        ? <>Same verdict ({real.verdict.status}) with or without real terrain.{changes.length ? <> Terrain changes {changes.join(', ')}.</> : ' The numbers barely move.'}</>
+        : <><strong>Terrain changes the answer:</strong> a smooth Moon says <strong>{smooth.verdict.status}</strong>, real terrain says <strong>{real.verdict.status}</strong> ({changes.join(', ')}).</>}
     </p>
   );
 }
@@ -310,15 +342,18 @@ function SmoothVs({ smooth, real }) {
 function TerrainFacts({ t }) {
   const y = t.yearly;
   return (
-    <div className="terrain-facts">
-      <Metric label="Ground elevation" value={`${t.elevationM >= 0 ? '+' : '−'}${Math.abs(Math.round(t.elevationM)).toLocaleString()} m`} sub="vs 1737.4 km reference sphere" tone="sun" />
-      <Metric label="Slope at site" value={`${t.slope.atSiteDeg}°`} sub={`Steepest within 1 km: ${t.slope.maxWithin1kmDeg}°`} tone={t.slope.atSiteDeg > 10 ? 'bad' : 'earth'} />
-      <Metric label="Nearest ice trap" value={`${t.nearestIceTrap.distanceKm} km`} sub={`Permanently shadowed region, ${t.nearestIceTrap.areaKm2} km²`} tone="earth" />
-      <Metric label="Sunlit over a year" value={`${Math.round(y.terrainSunPct)}%`} sub={`Smooth Moon would say ${Math.round(y.smoothSunPct)}%`} tone="sun" />
-    </div>
+    <>
+      <h3 className="group-head">Over a year at this spot <span className="muted small">our model with real NASA LOLA terrain</span></h3>
+      <div className="terrain-facts">
+        <Metric label="Sunlit over a year" value={`${Math.round(y.terrainSunPct)}%`} sub={`Smooth Moon would say ${Math.round(y.smoothSunPct)}%`} tone="sun" />
+        <Metric label="Earth in view over a year" value={`${Math.round(y.terrainEarthPct)}%`} sub={`Smooth Moon would say ${Math.round(y.smoothEarthPct)}%`} tone="earth" />
+        <Metric label="Ground elevation" value={`${t.elevationM >= 0 ? '+' : '−'}${Math.abs(Math.round(t.elevationM)).toLocaleString()} m`} sub="vs 1737.4 km reference sphere" tone="sun" />
+        <Metric label="Slope at site" value={`${t.slope.atSiteDeg}°`} sub={`Steepest within 1 km: ${t.slope.maxWithin1kmDeg}°`} tone={t.slope.atSiteDeg > 10 ? 'bad' : 'earth'} />
+        <Metric label="Nearest ice trap" value={`${t.nearestIceTrap.distanceKm} km`} sub={`Permanently shadowed region, ${t.nearestIceTrap.areaKm2} km²`} tone="earth" />
+      </div>
+    </>
   );
 }
-
 
 const cDeg = (k) => `${Math.round(k - 273.15)} °C`;
 
@@ -327,12 +362,12 @@ function ScienceFacts({ sci, terrain }) {
   const ice = d && (d.iceDepthM === null ? 'None in top 2.9 m' : d.iceDepthM === 0 ? 'At the surface' : `${d.iceDepthM} m down`);
   return (
     <div className="science">
-      <h3>NASA data for this spot</h3>
+      <h3 className="group-head">NASA's independent check <span className="muted small">NASA Goddard maps, LRO Diviner, USGS craters</span></h3>
       <div className="terrain-facts">
-        {n && <Metric label="NASA map: sunlit" value={`${Math.round(n.sunPct)}%`}
-          sub={`${y ? `Our 1-yr terrain model: ${Math.round(y.terrainSunPct)}%. ` : ''}NASA 18.6-yr average; within 180 m: ${Math.round(n.sunRangePct[0])}–${Math.round(n.sunRangePct[1])}%`} tone="sun" />}
-        {n && <Metric label="NASA map: Earth in view" value={`${Math.round(n.earthPct)}%`}
-          sub={`${y ? `Our 1-yr terrain model: ${Math.round(y.terrainEarthPct)}%. ` : ''}Within 180 m: ${Math.round(n.earthRangePct[0])}–${Math.round(n.earthRangePct[1])}%`} tone="earth" />}
+        {n && <Metric label="NASA map: sunlit (long-term)" value={`${Math.round(n.sunPct)}%`}
+          sub={`${y ? `vs our ${Math.round(y.terrainSunPct)}% above. ` : ''}NASA 18.6-yr average; within 180 m: ${Math.round(n.sunRangePct[0])}–${Math.round(n.sunRangePct[1])}%`} tone="sun" />}
+        {n && <Metric label="NASA map: Earth in view (long-term)" value={`${Math.round(n.earthPct)}%`}
+          sub={`${y ? `vs our ${Math.round(y.terrainEarthPct)}% above. ` : ''}Within 180 m: ${Math.round(n.earthRangePct[0])}–${Math.round(n.earthRangePct[1])}%`} tone="earth" />}
         {d && <Metric label="Water ice (Diviner)" value={ice}
           sub={d.nearestIceWithin1mKm !== null ? `Ice within 1 m of the surface: ${d.nearestIceWithin1mKm} km away · ${d.icePctWithin5km}% of ground within 5 km` : 'No shallow ice within 15 km'} tone="earth" />}
         {d && <Metric label="Ground temperature (Diviner)" value={`avg ${cDeg(d.tempAvgK)}`} sub={`Yearly maximum ${cDeg(d.tempMaxK)}`} tone="sun" />}

@@ -1,6 +1,6 @@
 import React from 'react';
 
-// Polar plot of the local sky. North up, east right (map view), azimuth clockwise from north.
+// Polar plot of the local sky as you see it looking up: north at the top, EAST ON THE LEFT (sky-chart convention).
 // Normal mode: centre = zenith, rim = horizon.
 // Horizon zoom: rim = −10°, horizon ring at +0°, centre = +20°. Used at polar sites where everything hugs the horizon.
 
@@ -14,7 +14,7 @@ function radius(alt, zoom) {
 function xy(alt, az, zoom) {
   const r = radius(alt, zoom);
   const a = (az * Math.PI) / 180;
-  return [C + r * Math.sin(a), C - r * Math.cos(a)];
+  return [C - r * Math.sin(a), C - r * Math.cos(a)];
 }
 
 function pathD(points, zoom) {
@@ -86,7 +86,7 @@ export default function SkyDome({ sun, earth, sunPath, earthPath, margin, zoom, 
         {zoom && <text x={C + horizonR * 0.7} y={C + horizonR * 0.7 + 18} className="dome-ring">below horizon</text>}
         {[['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([l, az]) => {
           const a = (az * Math.PI) / 180;
-          return <text key={l} x={C + (R + 16) * Math.sin(a)} y={C - (R + 16) * Math.cos(a) + 5} className="dome-cardinal">{l}</text>;
+          return <text key={l} x={C - (R + 16) * Math.sin(a)} y={C - (R + 16) * Math.cos(a) + 5} className="dome-cardinal">{l}</text>;
         })}
         {/* paths drawn over the ground so you can see where terrain hides them */}
         {sunPath && <path d={pathD(sunPath, zoom)} fill="none" stroke="#ffc845" strokeOpacity="0.45" strokeWidth="2" />}
@@ -103,6 +103,7 @@ export default function SkyDome({ sun, earth, sunPath, earthPath, margin, zoom, 
         <span><i className="dot sun" /> Sun {sun.alt.toFixed(2)}° · az {sun.az.toFixed(0)}°</span>
         <span><i className="dot earth" /> Earth {earth.alt.toFixed(2)}° · az {earth.az.toFixed(0)}°</span>
         <span><i className="dot band" /> ±{margin}° uncertainty band</span>
+        <span className="muted">Looking up: north at top, east on the left</span>
         {terrain && <span><i className="dot ground" /> Real terrain (LOLA) · dashed ring = smooth-Moon horizon</span>}
         <button className="link" onClick={onToggleZoom}>{zoom ? 'Show full sky' : 'Zoom to horizon'}</button>
       </div>
