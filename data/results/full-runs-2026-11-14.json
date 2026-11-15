@@ -1,0 +1,796 @@
+{
+ "meta": {
+  "landing": "2026-11-14T21:00:00.000Z",
+  "missionDays": 14,
+  "touchdowns": 1000,
+  "seed": 1,
+  "preset": "NASA Artemis III",
+  "opts": {
+   "missionDays": 14,
+   "marginDeg": 0.5,
+   "batteryHours": 0,
+   "commsGapHours": 48,
+   "relay": false,
+   "slipDays": 0,
+   "stepHours": 1,
+   "slopeMaxDeg": 10
+  },
+  "ellipse": {
+   "semiMajorM": 100,
+   "semiMinorM": 100,
+   "azimuthDeg": 0
+  },
+  "ephemeris": "astronomy-engine (live), hourly",
+  "engine": "src/engine (same code as the website)"
+ },
+ "sites": [
+  {
+   "id": "shackleton-rim",
+   "name": "Shackleton rim (ridge junction)",
+   "lat": -89.684,
+   "lon": -163.261,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 284,
+     "shadow": 0,
+     "power": 319,
+     "comms": 1000
+    },
+    "sunlitPct": {
+     "p5": 80.10973123627113,
+     "median": 100,
+     "p95": 100
+    },
+    "earthPct": {
+     "p5": 72.79210571151815,
+     "median": 78.34939137072286,
+     "p95": 79.39120831403783
+    },
+    "longestDarkH": {
+     "median": 0,
+     "p95": 66.60443999382866
+    },
+    "longestCommsGapH": {
+     "median": 72.73497914605035,
+     "p95": 90.6141201731364
+    },
+    "slopeDeg": {
+     "median": 5.25,
+     "p95": 11.5
+    }
+   },
+   "seconds": 150.637
+  },
+  {
+   "id": "connecting-ridge",
+   "name": "Connecting ridge (site C1)",
+   "lat": -89.406,
+   "lon": -136.2,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 84,
+     "shadow": 603,
+     "power": 1000,
+     "comms": 996
+    },
+    "sunlitPct": {
+     "p5": 18.34990833875868,
+     "median": 27.5864972654272,
+     "p95": 34.02341720284356
+    },
+    "earthPct": {
+     "p5": 43.113638705864155,
+     "median": 62.81202344070919,
+     "p95": 80.96438322533501
+    },
+    "longestDarkH": {
+     "median": 243.30054086893716,
+     "p95": 273.7376152058919
+    },
+    "longestCommsGapH": {
+     "median": 96.52130013285318,
+     "p95": 133.8465823642307
+    },
+    "slopeDeg": {
+     "median": 9.25,
+     "p95": 11.75
+    }
+   },
+   "seconds": 227.475
+  },
+  {
+   "id": "malapert-massif",
+   "name": "Malapert Massif (Artemis III region)",
+   "lat": -85.98,
+   "lon": -1.67,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 0
+    },
+    "sunlitPct": {
+     "p5": 86.06167719048798,
+     "median": 86.47452278452072,
+     "p95": 86.93606716612155
+    },
+    "earthPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "longestDarkH": {
+     "median": 45.44454894972059,
+     "p95": 46.83210389431424
+    },
+    "longestCommsGapH": {
+     "median": 0,
+     "p95": 0
+    },
+    "slopeDeg": {
+     "median": 7,
+     "p95": 8.5
+    }
+   },
+   "seconds": 77.794
+  },
+  {
+   "id": "im2-mons-mouton",
+   "name": "IM-2 Athena (Mons Mouton)",
+   "lat": -84.7906,
+   "lon": 29.1957,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 0
+    },
+    "sunlitPct": {
+     "p5": 94.0060676894415,
+     "median": 94.02227569735491,
+     "p95": 94.03633354413068
+    },
+    "earthPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "longestDarkH": {
+     "median": 20.085124639485677,
+     "p95": 20.139529943576388
+    },
+    "longestCommsGapH": {
+     "median": 0,
+     "p95": 0
+    },
+    "slopeDeg": {
+     "median": 2.25,
+     "p95": 2.75
+    }
+   },
+   "seconds": 77.582
+  },
+  {
+   "id": "nobile-rim-1",
+   "name": "Nobile Rim 1 (Artemis III region)",
+   "lat": -85.304,
+   "lon": 37.0581,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 0,
+     "comms": 1000
+    },
+    "sunlitPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "earthPct": {
+     "p5": 82.83672272517694,
+     "median": 83.90470201407538,
+     "p95": 84.45207684701586
+    },
+    "longestDarkH": {
+     "median": 0,
+     "p95": 0
+    },
+    "longestCommsGapH": {
+     "median": 54.07945278808594,
+     "p95": 57.607010347086586
+    },
+    "slopeDeg": {
+     "median": 3.5,
+     "p95": 5.75
+    }
+   },
+   "seconds": 82.991
+  },
+  {
+   "id": "nobile-rim-2",
+   "name": "Nobile Rim 2 (Artemis III region)",
+   "lat": -83.725,
+   "lon": 59.4201,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 0
+    },
+    "sunlitPct": {
+     "p5": 87.95594871268702,
+     "median": 87.97296019987076,
+     "p95": 87.98906612834224
+    },
+    "earthPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "longestDarkH": {
+     "median": 40.41082346828885,
+     "p95": 40.4679774214681
+    },
+    "longestCommsGapH": {
+     "median": 0,
+     "p95": 0
+    },
+    "slopeDeg": {
+     "median": 0.75,
+     "p95": 3.25
+    }
+   },
+   "seconds": 80.138
+  },
+  {
+   "id": "haworth",
+   "name": "Haworth (Artemis III region)",
+   "lat": -86.368,
+   "lon": -23.256,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 4
+    },
+    "sunlitPct": {
+     "p5": 89.617239208504,
+     "median": 89.63493043201184,
+     "p95": 89.64894673415088
+    },
+    "earthPct": {
+     "p5": 90.12733067874808,
+     "median": 97.56323252224796,
+     "p95": 100
+    },
+    "longestDarkH": {
+     "median": 34.826586307712134,
+     "p95": 34.88559230190701
+    },
+    "longestCommsGapH": {
+     "median": 8.168842561374241,
+     "p95": 33.05996389526367
+    },
+    "slopeDeg": {
+     "median": 2.75,
+     "p95": 4.5
+    }
+   },
+   "seconds": 80.605
+  },
+  {
+   "id": "de-gerlache-rim-2",
+   "name": "de Gerlache Rim 2 (Artemis III region)",
+   "lat": -88.5932,
+   "lon": -67.9442,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 157
+    },
+    "sunlitPct": {
+     "p5": 91.01520226709678,
+     "median": 91.97373322001462,
+     "p95": 92.72757291517308
+    },
+    "earthPct": {
+     "p5": 82.78636169251942,
+     "median": 87.0404354711462,
+     "p95": 87.10117425141512
+    },
+    "longestDarkH": {
+     "median": 26.96040237338596,
+     "p95": 30.16672072075738
+    },
+    "longestCommsGapH": {
+     "median": 43.54364326171875,
+     "p95": 57.725270282796224
+    },
+    "slopeDeg": {
+     "median": 2.5,
+     "p95": 4.75
+    }
+   },
+   "seconds": 84.27
+  },
+  {
+   "id": "peak-near-cabeus-b",
+   "name": "Peak near Cabeus B (Artemis III region)",
+   "lat": -81.3846,
+   "lon": -57.5449,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 5,
+     "shadow": 0,
+     "power": 1000,
+     "comms": 0
+    },
+    "sunlitPct": {
+     "p5": 63.631634632574816,
+     "median": 63.664114302115465,
+     "p95": 63.69704841738908
+    },
+    "earthPct": {
+     "p5": 97.17317582914565,
+     "median": 100,
+     "p95": 100
+    },
+    "longestDarkH": {
+     "median": 122.0885537955051,
+     "p95": 122.19765503777398
+    },
+    "longestCommsGapH": {
+     "median": 0,
+     "p95": 9.406539736260308
+    },
+    "slopeDeg": {
+     "median": 5,
+     "p95": 6.75
+    }
+   },
+   "seconds": 80.594
+  },
+  {
+   "id": "slater-plain",
+   "name": "Slater Plain (Artemis III region)",
+   "lat": -88.8075,
+   "lon": 123.7692,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 0,
+    "pSafe": 0,
+    "ci95": [
+     0,
+     0.003826898586390522
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 0,
+     "comms": 1000
+    },
+    "sunlitPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "earthPct": {
+     "p5": 78.83453811564773,
+     "median": 82.66683682325656,
+     "p95": 83.28743323585469
+    },
+    "longestDarkH": {
+     "median": 0,
+     "p95": 0
+    },
+    "longestCommsGapH": {
+     "median": 58.23404734598795,
+     "p95": 71.06837579155815
+    },
+    "slopeDeg": {
+     "median": 1.25,
+     "p95": 1.25
+    }
+   },
+   "seconds": 85.796
+  },
+  {
+   "id": "mons-mouton-plateau",
+   "name": "Mons Mouton Plateau (Artemis III region)",
+   "lat": -85.4135,
+   "lon": 31.7095,
+   "summary": {
+    "n": 1000,
+    "noData": 0,
+    "safe": 998,
+    "pSafe": 0.998,
+    "ci95": [
+     0.9927370411104123,
+     0.9994513678975429
+    ],
+    "fails": {
+     "slope": 0,
+     "shadow": 0,
+     "power": 0,
+     "comms": 2
+    },
+    "sunlitPct": {
+     "p5": 100,
+     "median": 100,
+     "p95": 100
+    },
+    "earthPct": {
+     "p5": 88.9611133573623,
+     "median": 92.68629418127877,
+     "p95": 94.96395370091837
+    },
+    "longestDarkH": {
+     "median": 0,
+     "p95": 0
+    },
+    "longestCommsGapH": {
+     "median": 24.570592296413846,
+     "p95": 36.95010035793728
+    },
+    "slopeDeg": {
+     "median": 5.25,
+     "p95": 6.25
+    }
+   },
+   "seconds": 76.662
+  }
+ ],
+ "searches": [
+  {
+   "center": "connecting-ridge",
+   "radiusKm": 5,
+   "weights": {
+    "safety": 5,
+    "power": 3,
+    "comms": 3,
+    "resources": 1
+   },
+   "screened": 2595,
+   "cells": 5459,
+   "rejected": {
+    "psr": 114,
+    "sun": 94,
+    "earth": 2656,
+    "noData": 0
+   },
+   "ranked": [
+    {
+     "lat": -89.47624919461657,
+     "lon": -137.44966262012707,
+     "nasaSunPct": 85.5,
+     "nasaEarthPct": 58,
+     "stage1Score": 0.85875,
+     "pSafe": 0.764,
+     "ci95": [
+      0.7367023285873139,
+      0.789277068959072
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 85.7451821095502,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 236
+     },
+     "iceKm": 0,
+     "score": 0.8660296219405422
+    },
+    {
+     "lat": -89.4538831697969,
+     "lon": -137.34927864748013,
+     "nasaSunPct": 84.5,
+     "nasaEarthPct": 57.5,
+     "stage1Score": 0.8530000000000001,
+     "pSafe": 0.411,
+     "ci95": [
+      0.38090167501917194,
+      0.44177951292920564
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 85.69687744013468,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 589
+     },
+     "iceKm": 0.12,
+     "score": 0.7168255269336701
+    },
+    {
+     "lat": -89.49240519280316,
+     "lon": -138.79306428168866,
+     "nasaSunPct": 77.5,
+     "nasaEarthPct": 58,
+     "stage1Score": 0.83675,
+     "pSafe": 0,
+     "ci95": [
+      0,
+      0.003826898586390522
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 85.60439517232098,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 14,
+      "shadow": 0,
+      "power": 45,
+      "comms": 1000
+     },
+     "iceKm": 0.12,
+     "score": 0.5453443212641357
+    }
+   ],
+   "seconds": 266.396
+  },
+  {
+   "center": "shackleton-rim",
+   "radiusKm": 5,
+   "weights": {
+    "safety": 5,
+    "power": 3,
+    "comms": 3,
+    "resources": 1
+   },
+   "screened": 2830,
+   "cells": 5462,
+   "rejected": {
+    "psr": 944,
+    "sun": 415,
+    "earth": 1273,
+    "noData": 0
+   },
+   "ranked": [
+    {
+     "lat": -89.78482466265598,
+     "lon": -155.55604521958347,
+     "nasaSunPct": 86,
+     "nasaEarthPct": 56.5,
+     "stage1Score": 0.8489166666666668,
+     "pSafe": 0,
+     "ci95": [
+      0,
+      0.003826898586390522
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 83.03666187659773,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 24,
+      "shadow": 0,
+      "power": 0,
+      "comms": 1000
+     },
+     "iceKm": 0.43,
+     "score": 0.533758321358161
+    },
+    {
+     "lat": -89.68708251432062,
+     "lon": -162.7108140152531,
+     "nasaSunPct": 89.5,
+     "nasaEarthPct": 54,
+     "stage1Score": 0.85875,
+     "pSafe": 0,
+     "ci95": [
+      0,
+      0.003826898586390522
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 79.90620913003993,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 1000
+     },
+     "iceKm": 0,
+     "score": 0.5330988561584332
+    },
+    {
+     "lat": -89.76512923949889,
+     "lon": -156.67464911902414,
+     "nasaSunPct": 84,
+     "nasaEarthPct": 49,
+     "stage1Score": 0.8325,
+     "pSafe": 0,
+     "ci95": [
+      0,
+      0.003826898586390522
+     ],
+     "sunlitMedian": 92.90796171228722,
+     "earthMedian": 75.59995654940731,
+     "longestDarkMedianH": 15.480552866075303,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 657,
+      "comms": 1000
+     },
+     "iceKm": 0,
+     "score": 0.5046031289875698
+    }
+   ],
+   "seconds": 264.991
+  },
+  {
+   "center": "nobile-rim-1",
+   "radiusKm": 5,
+   "weights": {
+    "safety": 5,
+    "power": 3,
+    "comms": 3,
+    "resources": 1
+   },
+   "screened": 3163,
+   "cells": 5463,
+   "rejected": {
+    "psr": 31,
+    "sun": 29,
+    "earth": 2240,
+    "noData": 0
+   },
+   "ranked": [
+    {
+     "lat": -85.29380052181297,
+     "lon": 36.90360387412575,
+     "nasaSunPct": 77,
+     "nasaEarthPct": 75,
+     "stage1Score": 0.88,
+     "pSafe": 1,
+     "ci95": [
+      0.9961731014136096,
+      1
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 100,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 0
+     },
+     "iceKm": 0,
+     "score": 1
+    },
+    {
+     "lat": -85.23605338891277,
+     "lon": 36.56070798064222,
+     "nasaSunPct": 68,
+     "nasaEarthPct": 85,
+     "stage1Score": 0.8798333333333334,
+     "pSafe": 1,
+     "ci95": [
+      0.9961731014136096,
+      1
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 100,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 0
+     },
+     "iceKm": 0.17,
+     "score": 0.9971666666666666
+    },
+    {
+     "lat": -85.20125180894253,
+     "lon": 36.48739626987248,
+     "nasaSunPct": 64,
+     "nasaEarthPct": 88,
+     "stage1Score": 0.8726666666666668,
+     "pSafe": 1,
+     "ci95": [
+      0.9961731014136096,
+      1
+     ],
+     "sunlitMedian": 100,
+     "earthMedian": 100,
+     "longestDarkMedianH": 0,
+     "fails": {
+      "slope": 0,
+      "shadow": 0,
+      "power": 0,
+      "comms": 0
+     },
+     "iceKm": 0.43,
+     "score": 0.9928333333333333
+    }
+   ],
+   "seconds": 256.616
+  }
+ ],
+ "done": "2026-11-15T03:10:08.968Z"
+}
