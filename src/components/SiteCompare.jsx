@@ -11,7 +11,7 @@ function extras(r) {
   const t = r.site.terrain, sci = scienceFor(r.site.id);
   return {
     slope: t ? t.slope.atSiteDeg : null,
-    ice: t ? t.nearestIceTrap.distanceKm : null,
+    ice: t && t.nearestIceTrap ? t.nearestIceTrap.distanceKm : null, // live custom points have no 1 km² ice-trap record
     nasaSun: sci && sci.nasaIllumination ? sci.nasaIllumination.sunPct : null,
     iceDepth: sci && sci.diviner ? sci.diviner.iceDepthM : undefined,
   };
