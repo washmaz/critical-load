@@ -22,9 +22,9 @@ _Link (public, no login): 30-second video with English subtitles._
 | Time | On screen | Voice-over / subtitle |
 | --- | --- | --- |
 | 0:00 | Team name + Moon south pole (no NASA logos) | "NASA wants to land astronauts at the Moon's south pole." |
-| 0:05 | App: pick Connecting ridge + date | "We built a weather app for the Moon. Pick a spot and a date." |
+| 0:05 | App: pick Connecting ridge + 2026-11-15 21:00 UTC | "We built a weather app for the Moon. Pick a spot and a date." |
 | 0:10 | Flat Moon: CAUTION, Sun up | "On a flat Moon, this spot looks sunny." |
-| 0:15 | Toggle real terrain: NO-GO, horizon silhouette over the Sun | "With NASA's real terrain, the hills block the Sun. NO-GO." |
+| 0:15 | Toggle real terrain: NO-GO, horizon silhouette over the Sun + "Sun hidden by terrain" marker | "With NASA's real terrain, the hills block the Sun. NO-GO." |
 | 0:22 | Text card | "Built on NASA LOLA terrain. Checked against JPL Horizons." |
 | 0:27 | App link + team name | "Critical Load. Simple answers for the next giant leap." |
 
