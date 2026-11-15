@@ -5,7 +5,8 @@ import { analyzeSite, compareSites, DEFAULTS } from './engine/analysis.js';
 import { withTerrain, terrainFor } from './engine/terrain.js';
 import { pointFacts, inTileCoverage } from './engine/pointData.js';
 import LandingSim from './components/LandingSim.jsx';
-import TeamReview from './components/TeamReview.jsx';
+import TeamReview, { TeamModules } from './components/TeamReview.jsx';
+import { DEFAULT_TEAM_INPUTS } from './engine/teamReview.js';
 import { scienceFor, SCIENCE_SOURCES, loadCraters, cratersNear } from './engine/science.js';
 import { loadTable, getStatus, horizonsUrl } from './engine/ephemerisStore.js';
 import { skyAt, setEphemerisMode } from './engine/lunarSky.js';
@@ -25,7 +26,7 @@ const TABS = [
   { id: 'answer', label: 'Overview' },
   { id: 'timeline', label: 'Over time' },
   { id: 'landing', label: 'Landing ellipse' },
-  { id: 'team', label: 'Team review' },
+  { id: 'team', label: 'Rank sites' },
   { id: 'compare', label: 'Compare sites' },
 ];
 
@@ -52,7 +53,7 @@ function readHash() {
     map: p.get('map') === 'polar' ? 'polar' : 'globe',
     place: p.get('place') || null,
     tab: TABS.some((t) => t.id === p.get('tab')) ? p.get('tab') : 'answer',
-    role: ['planning', 'power', 'comms', 'landing', 'science'].includes(p.get('role')) ? p.get('role') : 'all',
+    role: ['planning', 'power', 'comms', 'landing', 'thermal', 'science'].includes(p.get('role')) ? p.get('role') : 'all',
   };
 }
 function writeHash(s) {
@@ -91,7 +92,9 @@ export default function App() {
   const [customErr, setCustomErr] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
   const [showCoords, setShowCoords] = useState(false);
-  const [editLimits, setEditLimits] = useState(false);
+  // Team criteria (one source of truth). Limits that also set the verdict (stay, slip, battery, comms gap, relay) live in `s`
+  // so the GO / CAUTION / NO-GO answer and the site ranking always use the same numbers.
+  const [teamInp, setTeamInp] = useState(() => JSON.parse(JSON.stringify(DEFAULT_TEAM_INPUTS)));
 
   useEffect(() => writeHash(s), [s]);
   const [ephemTick, setEphemTick] = useState(0);
@@ -192,7 +195,7 @@ export default function App() {
       slipDays: DEFAULTS.slipDays, missionDays: DEFAULTS.missionDays, marginDeg: DEFAULTS.marginDeg, batteryHours: DEFAULTS.batteryHours,
       commsGapHours: DEFAULTS.commsGapHours, relay: false, gateway: false, ephem: 'auto' });
     setStayCustom(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => { const el = document.getElementById('answer'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
   };
   useEffect(() => { if (s.siteId !== 'custom') { setCustomDraft({ lat: String(baseSite.lat), lon: String(baseSite.lon) }); setCustomErr(null); } }, [s.siteId]);
   const pickPoint = useCallback((lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon, place: null }); }, [set]);
@@ -207,6 +210,18 @@ export default function App() {
   const simPick = useCallback((lat, lon) => { pickPoint(lat, lon); set({ tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pickPoint, set]);
   const teamLoad = useCallback((x) => { if (x.id === 'custom') return; set({ siteId: x.id, place: null, tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [set]);
   const teamSites = useMemo(() => [...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(site.id === 'custom' && inTileCoverage(site.lat, site.lon) ? [shownBase] : [])], [site, shownBase]);
+  const teamAll = useMemo(() => ({ ...teamInp,
+    mission: { ...teamInp.mission, stayDays: s.missionDays, slipDays: s.slipDays },
+    power: { ...teamInp.power, batteryHours: s.batteryHours },
+    comms: { ...teamInp.comms, commsGapHours: s.commsGapHours, relay: s.relay } }), [teamInp, s.missionDays, s.slipDays, s.batteryHours, s.commsGapHours, s.relay]);
+  const setTeamField = useCallback((t, k, val) => {
+    const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+    const shared = { 'mission.stayDays': ['missionDays', 0.5, 30], 'mission.slipDays': ['slipDays', 0, 90], 'power.batteryHours': ['batteryHours', 0, 720], 'comms.commsGapHours': ['commsGapHours', 1, 720] };
+    const key = `${t}.${k}`;
+    if (key === 'comms.relay') { set({ relay: !!val }); return; }
+    if (shared[key]) { if (val == null || !Number.isFinite(+val)) return; const [f, lo, hi] = shared[key]; set({ [f]: clamp(+val, lo, hi) }); return; }
+    setTeamInp((o) => ({ ...o, [t]: { ...o[t], [k]: val } }));
+  }, [set]);
   const statusById = useMemo(() => Object.fromEntries(compareRows.map((r) => [r.site.id, r.verdict.status])), [compareRows]);
 
   // ---- Overview (presentation only): three questions built from numbers the engine already returns ----
@@ -219,11 +234,14 @@ export default function App() {
   const commsChip = s.relay ? { cls: 'neutral', txt: 'Relay satellite assumed' }
     : v.commsOK ? { cls: 'go', txt: `Within the ${fmtDur(s.commsGapHours)} limit` }
     : { cls: 'caution', txt: `Over the ${fmtDur(s.commsGapHours)} limit: needs a relay` };
+  const slopeLimit = teamInp.landing.slopeMaxDeg ?? 10;
   const show = ROLE_CARDS[s.role] || ROLE_CARDS.all;
   const role = ROLES.find((r) => r.id === s.role) || ROLES[0];
+  const scenarioLine = `${site.name} · ${fmtUTC(s.landing)} · ${stayTxt}-day stay · slip ±${s.slipDays} d`;
 
   return (
     <div className="app2">
+      <a className="skip" href="#answer">Skip to the answer</a>
       <header className="appbar">
         <div className="brand">
           <span className="brand-name">Critical Load</span>
@@ -235,11 +253,8 @@ export default function App() {
               className={s.tab === t.id ? 'on' : ''} onClick={() => set({ tab: t.id })}>{t.label}</button>
           ))}
         </nav>
+        <a href="#answer" className={`mini-verdict ${statusClass(v.status)}`} title="Jump to the answer" onClick={() => s.tab !== 'answer' && set({ tab: 'answer' })}><VerdictIcon status={v.status} />{v.status}</a>
         <div className="appbar-actions">
-          <label htmlFor="role" className="role-label">View as</label>
-          <select id="role" value={s.role} onChange={(e) => set({ role: e.target.value })}>
-            {ROLES.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-          </select>
           <button onClick={backToDemo} title="Connecting ridge, 15 Nov 2026 21:00 UTC, starting on the smooth Moon">Load demo</button>
           <button onClick={() => setShowAbout((x) => !x)} aria-expanded={showAbout}>{showAbout ? 'Close' : 'How it works'}</button>
         </div>
@@ -247,180 +262,175 @@ export default function App() {
 
       {showAbout && <div className="about-wrap"><About /></div>}
 
-      <div className="layout">
-        {/* ---------------- Scenario rail: what you are checking ---------------- */}
-        <aside className="rail" aria-label="Scenario">
-          <div className="sec-head">
-            <h2>Scenario</h2>
-            <p className="sub">What you are checking. Every tab uses these.</p>
+      <main className="layout content">
+        {s.tab !== 'answer' && (
+          <div className="scn-bar">
+            <span><strong>{site.name}</strong> · {fmtUTC(s.landing)} · {stayTxt}-day stay · slip ±{s.slipDays} d · viewing as {role.label}</span>
+            <button className="linkbtn" onClick={() => { set({ tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Change site, time or role</button>
           </div>
+        )}
 
-          <div className="f">
-            <label htmlFor="site">Landing site</label>
-            <select id="site" value={place ? `place:${place.id}` : s.siteId} onChange={(e) => onSiteSelect(e.target.value)}>
-              {['South pole', 'Artemis III regions', 'Other sites'].map((g) => (
-                <optgroup key={g} label={g}>
-                  {SITES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-                </optgroup>
-              ))}
-              {PLACE_GROUPS.map((g) => (
-                <optgroup key={g} label={`Named places: ${g.toLowerCase()}`}>
-                  {PLACES.filter((x) => x.group === g).map((x) => <option key={x.id} value={`place:${x.id}`}>{x.name}</option>)}
-                </optgroup>
-              ))}
-              <option value="custom">Custom coordinates…</option>
-            </select>
-            <div className="f-row">
-              <span className="mono muted">{fmtLat(baseSite.lat)} · {fmtLon(baseSite.lon)}</span>
-              <button className="linkbtn" onClick={() => setShowCoords((x) => !x)} aria-expanded={coordsOpen}>{coordsOpen ? 'Hide coordinates' : 'Use coordinates'}</button>
-            </div>
-            {baseSite.note && <p className="f-help">{baseSite.note}{baseSite.url && <> <a href={baseSite.url} target="_blank" rel="noreferrer">Source</a></>}</p>}
-            {!baseSite.note && baseSite.url && <p className="f-help"><a href={baseSite.url} target="_blank" rel="noreferrer">Source</a></p>}
-            {coordsOpen && (
-              <form className="coords" onSubmit={(e) => { e.preventDefault(); applyCustom(); }}>
-                <label>Latitude (°)<input inputMode="decimal" value={customDraft.lat} onChange={(e) => setCustomDraft({ ...customDraft, lat: e.target.value })} placeholder="−89.45" /></label>
-                <label>Longitude (°E)<input inputMode="decimal" value={customDraft.lon} onChange={(e) => setCustomDraft({ ...customDraft, lon: e.target.value })} placeholder="−137.3" /></label>
-                <button type="submit">Check</button>
-                <p className="f-help">Latitude −90 to 90 (south negative), longitude −180 to 180 °E.</p>
-                {customErr && <p className="error">{customErr}</p>}
-              </form>
-            )}
-          </div>
+        {/* ================= Overview: one guided flow ================= */}
+        <div role="tabpanel" id="view-answer" aria-labelledby="tab-answer" hidden={s.tab !== 'answer'}>
+          <section className="intro">
+            <h1>Lunar Landing Site Navigator</h1>
+            <p>Will a landing site have sunlight for power and a radio link to Earth for the whole stay? Pick a place on the Moon, tell us who you are, set your criteria, and get GO, CAUTION or NO-GO from NASA data.</p>
+          </section>
 
-          <div className="f">
-            <label htmlFor="date">Landing time <span className="muted">(UTC)</span></label>
-            <input id="date" type="datetime-local" value={toInputUTC(s.landing)}
-              onChange={(e) => { const ms = fromInputUTC(e.target.value); if (ms) set({ landing: ms }); }} />
-            <div className="steps">
-              <button onClick={() => shift(-29.53)} title="One lunar day (29.5 days) earlier">−29.5 d</button>
-              <button onClick={() => shift(-1)}>−1 d</button>
-              <button onClick={() => shift(1)}>+1 d</button>
-              <button onClick={() => shift(29.53)} title="One lunar day (29.5 days) later">+29.5 d</button>
-            </div>
-            <button className="linkbtn" onClick={() => set({ landing: Math.floor(Date.now() / HOUR) * HOUR })}>Use the current time</button>
-          </div>
-
-          <div className="f" role="group" aria-labelledby="stay-l">
-            <span id="stay-l" className="f-label">Surface stay</span>
-            <div className="seg2">
-              {STAY_OPTIONS.map((d) => (
-                <button key={d} aria-pressed={!stayCustom && s.missionDays === d} className={!stayCustom && s.missionDays === d ? 'on' : ''}
-                  onClick={() => { setStayCustom(false); set({ missionDays: d }); }}>{d} days</button>
-              ))}
-              <button aria-pressed={stayCustom} className={stayCustom ? 'on' : ''} onClick={() => setStayCustom(true)}>Custom</button>
-            </div>
-            {stayCustom && <label className="inline-num">Days (0.5–30)<input id="mission-custom" type="number" min="0.5" max="30" step="0.5" value={s.missionDays}
-              onChange={(e) => { const x = +e.target.value; if (x >= 0.5 && x <= 30) set({ missionDays: x }); }} /></label>}
-            <p className="f-help">NASA publishes no stay length for Artemis III; the mission team sets it.</p>
-          </div>
-
-          <div className="f">
-            <label htmlFor="slip">Launch slip window</label>
-            <select id="slip" value={s.slipDays} onChange={(e) => set({ slipDays: +e.target.value })}>
-              {SLIP_OPTIONS.map((d) => <option key={d} value={d}>{d === 0 ? 'None (exact date)' : `± ${d} days`}</option>)}
-            </select>
-            <p className="f-help">We re-check every landing time in this window (Over time tab).</p>
-          </div>
-
-          <div className="limits">
-            <div className="limits-head">
-              <h3>Mission limits</h3>
-              <button onClick={() => setEditLimits((x) => !x)} aria-expanded={editLimits}>{editLimits ? 'Done' : 'Edit'}</button>
-            </div>
-            {!editLimits ? (
-              <dl>
-                <dt>Battery survives dark</dt><dd className="mono">{fmtDur(s.batteryHours)}</dd>
-                <dt>Longest comms gap allowed</dt><dd className="mono">{fmtDur(s.commsGapHours)}</dd>
-                <dt>Horizon margin</dt><dd className="mono">±{s.marginDeg}°</dd>
-                <dt>Relay satellite</dt><dd>{s.relay ? 'On' : 'Off'}</dd>
-                {s.gateway && <><dt>Descents</dt><dd>Gateway only</dd></>}
-              </dl>
-            ) : (
-              <div className="limits-edit">
-                <label htmlFor="battery">Battery survives dark for</label>
-                <select id="battery" value={s.batteryHours} onChange={(e) => set({ batteryHours: +e.target.value })}>
-                  {[12, 24, 48, 72, 120, 240].map((h) => <option key={h} value={h}>{fmtDur(h)}</option>)}
-                </select>
-                <label htmlFor="comms">Longest comms gap allowed</label>
-                <select id="comms" value={s.commsGapHours} onChange={(e) => set({ commsGapHours: +e.target.value })}>
-                  {[6, 12, 24, 48, 72, 120].map((h) => <option key={h} value={h}>{fmtDur(h)}</option>)}
-                </select>
-                <label htmlFor="margin">Horizon margin: ±{s.marginDeg}° <Tip text="A body only counts as up when it is this far above the horizon. Covers the Sun's disc, terrain we don't model and model error." /></label>
-                <input id="margin" type="range" min="0" max="3" step="0.25" value={s.marginDeg} onChange={(e) => set({ marginDeg: +e.target.value })} />
-                <label className="check"><input type="checkbox" checked={s.relay} onChange={(e) => set({ relay: e.target.checked })} />Relay satellite (comms always covered)</label>
-                <label className="check" title="NASA's Artemis III overview: with Gateway in its near-rectilinear halo orbit, a descent is possible about once every 6.5 days">
-                  <input type="checkbox" checked={s.gateway} onChange={(e) => set({ gateway: e.target.checked })} />Only Gateway descent chances (one every ~6.5 days)</label>
-                {s.gateway && <>
-                  <label htmlFor="gwe">One descent chance at (UTC)</label>
-                  <input id="gwe" type="datetime-local" value={new Date(Number.isFinite(s.gwEpoch) ? s.gwEpoch : s.landing).toISOString().slice(0, 16)}
-                    onChange={(e) => { const t = Date.parse(e.target.value + 'Z'); if (Number.isFinite(t)) set({ gwEpoch: t }); }} />
-                  <p className="f-help">The orbit's timing isn't public, so you set one chance; slip checks then use one every 6.5 days from it.</p>
-                </>}
-                <label htmlFor="ephem">Sun and Earth positions</label>
-                <select id="ephem" value={s.ephem} onChange={(e) => set({ ephem: e.target.value })}>
-                  <option value="auto">NASA JPL DE421 table (fast), live backup</option>
-                  <option value="live">Live calculation (astronomy-engine)</option>
-                </select>
-              </div>
-            )}
-          </div>
-
-          <div className="data-note">
-            <p>{s.ephem === 'live' ? 'Sun and Earth: computed live in your browser.' : ephemStatus.state === 'ready'
-              ? `Sun and Earth: NASA JPL DE421 table (agrees with live to ${ephemStatus.check ? ephemStatus.check.maxDiffDeg.toFixed(3) : '0.01'}°).`
-              : `Sun and Earth: ${ephemStatus.detail}; using live calculation.`}</p>
-            <p>Check on JPL Horizons: <a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '10')} target="_blank" rel="noreferrer">Sun</a> · <a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '399')} target="_blank" rel="noreferrer">Earth</a></p>
-            <p>Terrain: NASA LRO LOLA, 80 m, south of 80° S.</p>
-          </div>
-        </aside>
-
-        <main className="content">
-          {/* ---------------- Overview ---------------- */}
-          <div role="tabpanel" id="view-answer" aria-labelledby="tab-answer" hidden={s.tab !== 'answer'}>
-            <div className={`results ${updating ? 'is-updating' : ''}`} aria-busy={updating}>
-              {updating && <p className="updating-note" role="status"><span className="spinner" aria-hidden="true" />Calculating real NASA terrain for {fmtLat(baseSite.lat)}, {fmtLon(baseSite.lon)}…</p>}
-              <section className={`hero ${statusClass(v.status)}`} aria-labelledby="verdict-h">
-                <div className="hero-top">
-                  <p id="verdict-h" className="hero-status" key={v.status}><VerdictIcon status={v.status} />{v.status}</p>
-                  <div className="hero-text">
-                    <p className="hero-head">{HEADLINE[v.status]}</p>
-                    <p className="hero-meta">{site.name} · {fmtUTC(s.landing)} · {stayTxt}-day stay</p>
+          {/* ---- Step 1: where and when ---- */}
+          <section className="step" aria-labelledby="s1-h">
+            <div className="step-head"><span className="step-num" aria-hidden="true">1</span>
+              <div><h2 id="s1-h">Pick a place on the Moon</h2><p className="sub">Click the Moon or choose from the list, then set the landing time.</p></div></div>
+            <div className="s1-grid">
+              <div className="panel where">
+                <div className="where-head">
+                  <span className="sub">Drag to turn the Moon (far side too). Click anywhere to check that point.</span>
+                  <div className="seg map-tabs" role="tablist" aria-label="Map type">
+                    <button role="tab" aria-selected={s.map === 'globe'} className={s.map === 'globe' ? 'on' : ''} onClick={() => set({ map: 'globe' })}>3D Moon</button>
+                    <button role="tab" aria-selected={s.map === 'polar'} className={s.map === 'polar' ? 'on' : ''} onClick={() => set({ map: 'polar' })}>South pole map</button>
                   </div>
                 </div>
-                {shownHasTerrain && (
-                  <div className="hero-switch">
-                    <span className="muted small">Horizon model</span>
-                    <div className="terrain-switch" role="group" aria-label="Horizon model">
-                      <button className={!s.terrain ? 'on' : ''} aria-pressed={!s.terrain} onClick={() => set({ terrain: false })}>Smooth Moon</button>
-                      <button className={s.terrain ? 'on' : ''} aria-pressed={s.terrain} onClick={() => set({ terrain: true })}>Real NASA terrain</button>
+                {s.map === 'globe'
+                  ? <Suspense fallback={<div className="globe-box globe-loading"><p className="hint">Loading the 3D Moon…</p></div>}>
+                      <MoonGlobe sites={SITES} statusById={statusById} currentId={s.siteId}
+                        custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon, name: place ? place.name : null } : null}
+                        onPick={pickSite} onPickPoint={pickPoint} />
+                    </Suspense>
+                  : <PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon } : null}
+                      onPick={pickSite} onPickPoint={pickPoint} />}
+              </div>
+              <div className="s1-form panel">
+                <div className="f">
+                  <label htmlFor="site">Landing site</label>
+                  <select id="site" value={place ? `place:${place.id}` : s.siteId} onChange={(e) => onSiteSelect(e.target.value)}>
+                    {['South pole', 'Artemis III regions', 'Other sites'].map((g) => (
+                      <optgroup key={g} label={g}>
+                        {SITES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                      </optgroup>
+                    ))}
+                    {PLACE_GROUPS.map((g) => (
+                      <optgroup key={g} label={`Named places: ${g.toLowerCase()}`}>
+                        {PLACES.filter((x) => x.group === g).map((x) => <option key={x.id} value={`place:${x.id}`}>{x.name}</option>)}
+                      </optgroup>
+                    ))}
+                    <option value="custom">Custom coordinates…</option>
+                  </select>
+                  <div className="f-row">
+                    <span className="mono muted">{fmtLat(baseSite.lat)} · {fmtLon(baseSite.lon)}</span>
+                    <button className="linkbtn" onClick={() => setShowCoords((x) => !x)} aria-expanded={coordsOpen}>{coordsOpen ? 'Hide coordinates' : 'Type coordinates'}</button>
+                  </div>
+                  {baseSite.note && <p className="f-help">{baseSite.note}{baseSite.url && <> <a href={baseSite.url} target="_blank" rel="noreferrer">Source</a></>}</p>}
+                  {!baseSite.note && baseSite.url && <p className="f-help"><a href={baseSite.url} target="_blank" rel="noreferrer">Source</a></p>}
+                  {coordsOpen && (
+                    <form className="coords" onSubmit={(e) => { e.preventDefault(); applyCustom(); }}>
+                      <label>Latitude (°)<input inputMode="decimal" value={customDraft.lat} onChange={(e) => setCustomDraft({ ...customDraft, lat: e.target.value })} placeholder="−89.45" /></label>
+                      <label>Longitude (°E)<input inputMode="decimal" value={customDraft.lon} onChange={(e) => setCustomDraft({ ...customDraft, lon: e.target.value })} placeholder="−137.3" /></label>
+                      <button type="submit">Check</button>
+                      <p className="f-help">Latitude −90 to 90 (south negative), longitude −180 to 180 °E.</p>
+                      {customErr && <p className="error">{customErr}</p>}
+                    </form>
+                  )}
+                </div>
+                <div className="f">
+                  <label htmlFor="date">Landing time <span className="muted">(UTC)</span></label>
+                  <input id="date" type="datetime-local" value={toInputUTC(s.landing)}
+                    onChange={(e) => { const ms = fromInputUTC(e.target.value); if (ms) set({ landing: ms }); }} />
+                  <div className="steps">
+                    <button onClick={() => shift(-29.53)} title="One lunar day (29.5 days) earlier">−29.5 d</button>
+                    <button onClick={() => shift(-1)}>−1 d</button>
+                    <button onClick={() => shift(1)}>+1 d</button>
+                    <button onClick={() => shift(29.53)} title="One lunar day (29.5 days) later">+29.5 d</button>
+                  </div>
+                  <button className="linkbtn" onClick={() => set({ landing: Math.floor(Date.now() / HOUR) * HOUR })}>Use the current time</button>
+                </div>
+                {!shownHasTerrain && <p className="notice small"><strong>No NASA terrain here.</strong> Real terrain (LRO LOLA) covers only about 80–90° S; this place is checked on a smooth Moon.</p>}
+              </div>
+            </div>
+          </section>
+
+          {/* ---- Step 2: who is looking ---- */}
+          <section className="step" aria-labelledby="s2-h">
+            <div className="step-head"><span className="step-num" aria-hidden="true">2</span>
+              <div><h2 id="s2-h">Who's checking?</h2><p className="sub">Pick your team to see only your criteria, or see everything.</p></div></div>
+            <div className="roles" role="radiogroup" aria-labelledby="s2-h">
+              {ROLES.map((r) => (
+                <button key={r.id} role="radio" aria-checked={s.role === r.id} className={`role-chip ${s.role === r.id ? 'on' : ''}`} onClick={() => set({ role: r.id })}>
+                  <span className="rc-name">{r.label}</span><span className="rc-sub">{r.sub}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* ---- Step 3: criteria ---- */}
+          <section className="step" aria-labelledby="s3-h">
+            <div className="step-head"><span className="step-num" aria-hidden="true">3</span>
+              <div><h2 id="s3-h">{s.role === 'all' ? 'Every team\'s criteria' : `${role.label} criteria`}</h2>
+                <p className="sub">Each card is one team: its limits and how much it counts when sites are ranked. Limits tagged "Changes the verdict" also set the GO / CAUTION / NO-GO answer below.</p></div></div>
+            <TeamModules role={s.role} inp={teamAll} setField={setTeamField} />
+            {(s.role === 'all' || s.role === 'planning') && (
+              <details className="more-row model-settings">
+                <summary><span className="more-t">Model settings</span><span className="more-s">Horizon margin ±{s.marginDeg}° · {s.ephem === 'live' ? 'live positions' : 'JPL DE421 table'}{s.gateway ? ' · Gateway descents only' : ''}</span></summary>
+                <div className="limits-edit">
+                  <label htmlFor="margin">Horizon margin: ±{s.marginDeg}° <Tip text="A body only counts as up when it is this far above the horizon. Covers the Sun's disc, terrain we don't model and model error." /></label>
+                  <input id="margin" type="range" min="0" max="3" step="0.25" value={s.marginDeg} onChange={(e) => set({ marginDeg: +e.target.value })} />
+                  <label className="check" title="NASA's Artemis III overview: with Gateway in its near-rectilinear halo orbit, a descent is possible about once every 6.5 days">
+                    <input type="checkbox" checked={s.gateway} onChange={(e) => set({ gateway: e.target.checked })} />Only Gateway descent chances (one every ~6.5 days)</label>
+                  {s.gateway && <>
+                    <label htmlFor="gwe">One descent chance at (UTC)</label>
+                    <input id="gwe" type="datetime-local" value={new Date(Number.isFinite(s.gwEpoch) ? s.gwEpoch : s.landing).toISOString().slice(0, 16)}
+                      onChange={(e) => { const t = Date.parse(e.target.value + 'Z'); if (Number.isFinite(t)) set({ gwEpoch: t }); }} />
+                    <p className="f-help">The orbit's timing isn't public, so you set one chance; slip checks then use one every 6.5 days from it.</p>
+                  </>}
+                  <label htmlFor="ephem">Sun and Earth positions</label>
+                  <select id="ephem" value={s.ephem} onChange={(e) => set({ ephem: e.target.value })}>
+                    <option value="auto">NASA JPL DE421 table (fast), live backup</option>
+                    <option value="live">Live calculation (astronomy-engine)</option>
+                  </select>
+                </div>
+              </details>
+            )}
+          </section>
+
+          {/* ---- Step 4: the answer, with the sky beside it ---- */}
+          <section className="step" id="answer" aria-labelledby="s4-h">
+            <div className="step-head"><span className="step-num" aria-hidden="true">4</span>
+              <div><h2 id="s4-h">The answer</h2><p className="sub">{scenarioLine}</p></div></div>
+            <div className="ov-grid">
+              <div className={`results ov-left ${updating ? 'is-updating' : ''}`} aria-busy={updating}>
+                {updating && <p className="updating-note" role="status"><span className="spinner" aria-hidden="true" />Calculating real NASA terrain for {fmtLat(baseSite.lat)}, {fmtLon(baseSite.lon)}…</p>}
+                <section className={`hero ${statusClass(v.status)}`} aria-labelledby="verdict-h">
+                  <div className="hero-top">
+                    <p id="verdict-h" className="hero-status" key={v.status} aria-live="polite"><VerdictIcon status={v.status} />{v.status}</p>
+                    <div className="hero-text">
+                      <p className="hero-head">{HEADLINE[v.status]}</p>
+                      <p className="hero-meta">{site.name} · {fmtUTC(s.landing)} · {stayTxt}-day stay</p>
                     </div>
-                    <p className="hero-flip"><FlipLine smooth={smooth} real={result} terrainOn={terrainOn} /></p>
+                  </div>
+                  {shownHasTerrain && (
+                    <div className="hero-switch">
+                      <span className="muted small">Horizon model</span>
+                      <div className="terrain-switch" role="group" aria-label="Horizon model">
+                        <button className={!s.terrain ? 'on' : ''} aria-pressed={!s.terrain} onClick={() => set({ terrain: false })}>Smooth Moon</button>
+                        <button className={s.terrain ? 'on' : ''} aria-pressed={s.terrain} onClick={() => set({ terrain: true })}>Real NASA terrain</button>
+                      </div>
+                      <p className="hero-flip"><FlipLine smooth={smooth} real={result} terrainOn={terrainOn} /></p>
+                    </div>
+                  )}
+                  <p className="hero-trust">Terrain: NASA LRO LOLA (80 m{shownHasTerrain ? '' : ', south of 80° S only: smooth Moon here'}) · Sun and Earth: {s.ephem === 'live' ? 'computed live' : 'NASA JPL DE421'}, checked against <a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '10')} target="_blank" rel="noreferrer">JPL Horizons</a> · A first filter, not a certified tool</p>
+                </section>
+
+                {site.id === 'custom' && <div className="point-notes">
+                  <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={inTileCoverage(site.lat, site.lon)} />
+                  {liveFailed && !updating && <p className="hint small warn">Couldn't load NASA terrain here: {live.error}. Showing the smooth Moon.</p>}
+                </div>}
+
+                {s.role !== 'all' && s.role !== 'planning' && (
+                  <div className="role-note">
+                    <span>Showing what <strong>{role.label}</strong> needs. The verdict above still uses every check.</span>
+                    <button className="linkbtn" onClick={() => set({ role: 'all' })}>Show everything</button>
                   </div>
                 )}
-              </section>
 
-              {!shownHasTerrain && (
-                <div className="notice" role="note">
-                  <strong>No NASA terrain data for this place.</strong> This answer uses a smooth Moon, so hills and crater walls that could block the Sun or Earth are not included. Real NASA terrain (LRO LOLA) covers only the south pole, about 80–90° S.
-                </div>
-              )}
-              {site.id === 'custom' && <div className="point-notes">
-                <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={inTileCoverage(site.lat, site.lon)} />
-                {liveFailed && !updating && <p className="hint small warn">Couldn't load NASA terrain here: {live.error}. Showing the smooth Moon.</p>}
-              </div>}
-
-              {s.role !== 'all' && s.role !== 'planning' && (
-                <div className="role-note">
-                  <span>Showing what <strong>{role.label}</strong> needs. The verdict above still uses every check.</span>
-                  <button className="linkbtn" onClick={() => set({ role: 'all' })}>Show everything</button>
-                </div>
-              )}
-
-              <section className="block" aria-labelledby="q-h">
-                <div className="sec-head">
-                  <h2 id="q-h">What decides it</h2>
-                  <p className="sub">One question per card, checked against your mission limits.</p>
-                </div>
                 <div className="qcards">
                   {show.power && <QCard icon="sun" kicker="Power" q="Will it have sunlight?" value={fmtDur(m.longestDarkH)} label="Longest time without sunlight"
                     chip={powerChip} detail={`Sunlit ${fmtPct(m.sunlitPct)} of the stay. ${windowNote({ body: 'Sun', clear: series.sunClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.sunlitAtStart, end: m.sunset, start: m.sunrise, landing: s.landing })}.`}
@@ -430,150 +440,133 @@ export default function App() {
                     help={HELP['Longest comms gap']} onMore={() => set({ tab: 'timeline' })} more="See it over time" />}
                   {show.landing && (slope
                     ? <QCard icon="ground" kicker="Landing" q="Is the ground safe to land on?" value={`${slope.atSiteDeg}°`} label="Slope at the site (NASA LOLA, 80 m)"
-                        chip={slope.atSiteDeg > 10 ? { cls: 'nogo', txt: 'Over the 10° Artemis III limit' } : { cls: 'go', txt: 'Under the 10° Artemis III limit' }}
+                        chip={slope.atSiteDeg > slopeLimit ? { cls: 'nogo', txt: `Over your ${slopeLimit}° slope limit` } : { cls: 'go', txt: `Under your ${slopeLimit}° slope limit` }}
                         detail={`Steepest within 1 km: ${slope.maxWithin1kmDeg}°. One point is not the whole landing area: run the 1,000-touchdown check.`}
                         help={HELP['Slope at site']} onMore={() => set({ tab: 'landing' })} more="Open landing ellipse" />
                     : <QCard icon="ground" kicker="Landing" q="Is the ground safe to land on?" value="—" label="No NASA slope data here"
                         chip={{ cls: 'neutral', txt: 'Not checked' }} detail="Slope and touchdown checks need NASA LOLA terrain, which covers only the south pole (about 80–90° S)."
                         help={HELP['Slope at site']} />)}
                 </div>
-              </section>
-
-              <section className="grid-2 block">
-                <div className="panel where">
-                  <div className="where-head">
-                    <div className="sec-head">
-                      <h2>Where it is</h2>
-                      <p className="sub">Drag to turn the Moon. Click anywhere to check a new site.</p>
-                    </div>
-                    <div className="seg map-tabs" role="tablist" aria-label="Map type">
-                      <button role="tab" aria-selected={s.map === 'globe'} className={s.map === 'globe' ? 'on' : ''} onClick={() => set({ map: 'globe' })}>3D Moon</button>
-                      <button role="tab" aria-selected={s.map === 'polar'} className={s.map === 'polar' ? 'on' : ''} onClick={() => set({ map: 'polar' })}>South pole map</button>
-                    </div>
-                  </div>
-                  {s.map === 'globe'
-                    ? <Suspense fallback={<div className="globe-box globe-loading"><p className="hint">Loading the 3D Moon…</p></div>}>
-                        <MoonGlobe sites={SITES} statusById={statusById} currentId={s.siteId}
-                          custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon, name: place ? place.name : null } : null}
-                          onPick={pickSite} onPickPoint={pickPoint} />
-                      </Suspense>
-                    : <PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon } : null}
-                        onPick={pickSite} onPickPoint={pickPoint} />}
-                </div>
-                <div className="panel">
-                  <div className="sec-head">
-                    <h2>Sky at {fmtShortUTC(tNow)} UTC</h2>
-                    <p className="sub">Looking straight up. Sun solid line, Earth dashed. Press play to move through the stay.</p>
-                  </div>
-                  <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
-                    zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
-                  <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} />
-                </div>
-              </section>
-
-              <section className="block" aria-labelledby="more-h">
+              </div>
+              <aside className="ov-right panel" aria-label="Sky at the site">
                 <div className="sec-head">
-                  <h2 id="more-h">More detail</h2>
-                  <p className="sub">Closed by default. Each row says what is inside.</p>
+                  <h3>Sky at {fmtShortUTC(tNow)} UTC</h3>
+                  <p className="sub">Looking straight up. Sun solid line, Earth dashed. Press play to move through the stay.</p>
                 </div>
-                <div className="more">
-                  <details className="more-row" open={s.role === 'power' || s.role === 'comms' ? true : undefined}>
-                    <summary><span className="more-t">All mission numbers</span><span className="more-s">Sun and Earth at landing, % of the stay, marginal time</span></summary>
-                    <div className="cards">
-                      <Metric label="Sun elevation at landing" value={signedDeg(series.sunAlt[i0])}
-                        sub={windowNote({ body: 'Sun', clear: series.sunClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.sunlitAtStart, end: m.sunset, start: m.sunrise, landing: s.landing })} tone="sun" />
-                      <Metric label="Sunlit this mission" value={fmtPct(m.sunlitPct)} sub={`+ ${fmtPct(m.sunMarginalPct)} marginal`} tone="sun" />
-                      <Metric label="Longest dark stretch" value={fmtDur(m.longestDarkH)} sub={`Battery limit ${fmtDur(s.batteryHours)}`} tone={m.longestDarkH > s.batteryHours ? 'bad' : 'sun'} />
-                      <Metric label="Earth elevation at landing" value={signedDeg(series.earthAlt[i0])}
-                        sub={windowNote({ body: 'Earth', clear: series.earthClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.earthAtStart, end: m.earthset, start: m.earthrise, landing: s.landing })} tone="earth" />
-                      <Metric label="Earth in view this mission" value={fmtPct(m.earthPct)} sub={`+ ${fmtPct(m.earthMarginalPct)} marginal`} tone="earth" />
-                      <Metric label="Longest comms gap" value={fmtDur(m.longestCommsGapH)} sub={s.relay ? 'Relay assumed' : `Limit ${fmtDur(s.commsGapHours)}`} tone={!s.relay && m.longestCommsGapH > s.commsGapHours ? 'bad' : 'earth'} />
-                    </div>
-                  </details>
-                  {terrainOn && (
-                    <details className="more-row">
-                      <summary><span className="more-t">Over a year at this site</span>
-                        <span className="more-s">Sunlit {Math.round(site.terrain.yearly.terrainSunPct)}% · Earth in view {Math.round(site.terrain.yearly.terrainEarthPct)}% (smooth Moon: {Math.round(site.terrain.yearly.smoothSunPct)}% / {Math.round(site.terrain.yearly.smoothEarthPct)}%)</span></summary>
-                      <TerrainFacts t={site.terrain} />
-                    </details>
-                  )}
-                  {sci && (
-                    <details className="more-row" open={s.role === 'science' ? true : undefined}>
-                      <summary><span className="more-t">NASA's independent check, ice and temperature</span><span className="more-s">{sciSummary(sci)}</span></summary>
-                      <ScienceFacts sci={sci} terrain={site.terrain} />
-                    </details>
-                  )}
-                  <details className="more-row">
-                    <summary><span className="more-t">Limits of this answer</span><span className="more-s">What the model does not see</span></summary>
-                    <p className="limits-text">“Up” means the body's centre is more than ±{s.marginDeg}° above the horizon in its direction.
-                      South of 80° S that horizon is real terrain from NASA LOLA elevation data (80 m pixels, observer 2 m above the ground); detail closer than 240 m is not modelled, so the exact landing spot matters.
-                      Everywhere else it is a smooth lunar sphere, so crater rims and ridges can block a body we show as up. This is a first filter, not a certified tool. Times are UTC.</p>
-                  </details>
-                </div>
-              </section>
+                <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
+                  zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
+                <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} />
+              </aside>
             </div>
-          </div>
+          </section>
 
-          <div role="tabpanel" id="view-timeline" aria-labelledby="tab-timeline" hidden={s.tab !== 'timeline'}>
-            <section className="panel">
-              <div className="sec-head">
-                <h2>Over the stay</h2>
-                <p className="sub">Height of the Sun (gold) and Earth (blue) from landing to the end of the stay.{terrainOn && ' Grey dashed line = real terrain in the Sun\'s direction: when gold drops below it, the Sun is hidden.'} Lanes: coloured = available, amber = marginal (inside ±{s.marginDeg}°), dark = not available.</p>
-              </div>
-              <div className="chart-scroll"><Timeline series={series} i0={i0} i1={i1} margin={s.marginDeg} scrubMs={tNow} onScrub={setScrub} /></div>
-              <p className="hint small chart-scroll-hint">Swipe sideways to see the whole stay.</p>
-              <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} />
-            </section>
-            <section className="panel">
-              <div className="sec-head">
-                <h2>What if the launch slips?</h2>
-                <p className="sub">Every landing time in your ± {s.slipDays}-day window, checked the same way. Click a date to load it.</p>
-              </div>
-              <SlipWindow analysis={a} onPick={pickTime} />
-            </section>
-          </div>
+          {/* ---- Step 5: details ---- */}
+          <section className="step" aria-labelledby="more-h">
+            <div className="step-head"><span className="step-num" aria-hidden="true">5</span>
+              <div><h2 id="more-h">Details and next steps</h2><p className="sub">Closed by default; each row says what is inside.</p></div></div>
+            <div className="next-actions">
+              <button className="primary" onClick={() => { set({ tab: 'team' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Rank all sites with these criteria</button>
+              <button onClick={() => { set({ tab: 'landing' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Run the 1,000-touchdown check</button>
+              <button onClick={() => { set({ tab: 'timeline' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>What if the launch slips?</button>
+            </div>
+            <div className="more">
+              <details className="more-row" open={s.role === 'power' || s.role === 'comms' ? true : undefined}>
+                <summary><span className="more-t">All mission numbers</span><span className="more-s">Sun and Earth at landing, % of the stay, marginal time</span></summary>
+                <div className="cards">
+                  <Metric label="Sun elevation at landing" value={signedDeg(series.sunAlt[i0])}
+                    sub={windowNote({ body: 'Sun', clear: series.sunClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.sunlitAtStart, end: m.sunset, start: m.sunrise, landing: s.landing })} tone="sun" />
+                  <Metric label="Sunlit this mission" value={fmtPct(m.sunlitPct)} sub={`+ ${fmtPct(m.sunMarginalPct)} marginal`} tone="sun" />
+                  <Metric label="Longest dark stretch" value={fmtDur(m.longestDarkH)} sub={`Battery limit ${fmtDur(s.batteryHours)}`} tone={m.longestDarkH > s.batteryHours ? 'bad' : 'sun'} />
+                  <Metric label="Earth elevation at landing" value={signedDeg(series.earthAlt[i0])}
+                    sub={windowNote({ body: 'Earth', clear: series.earthClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.earthAtStart, end: m.earthset, start: m.earthrise, landing: s.landing })} tone="earth" />
+                  <Metric label="Earth in view this mission" value={fmtPct(m.earthPct)} sub={`+ ${fmtPct(m.earthMarginalPct)} marginal`} tone="earth" />
+                  <Metric label="Longest comms gap" value={fmtDur(m.longestCommsGapH)} sub={s.relay ? 'Relay assumed' : `Limit ${fmtDur(s.commsGapHours)}`} tone={!s.relay && m.longestCommsGapH > s.commsGapHours ? 'bad' : 'earth'} />
+                </div>
+              </details>
+              {terrainOn && (
+                <details className="more-row">
+                  <summary><span className="more-t">Over a year at this site</span>
+                    <span className="more-s">Sunlit {Math.round(site.terrain.yearly.terrainSunPct)}% · Earth in view {Math.round(site.terrain.yearly.terrainEarthPct)}% (smooth Moon: {Math.round(site.terrain.yearly.smoothSunPct)}% / {Math.round(site.terrain.yearly.smoothEarthPct)}%)</span></summary>
+                  <TerrainFacts t={site.terrain} />
+                </details>
+              )}
+              {sci && (
+                <details className="more-row" open={s.role === 'science' ? true : undefined}>
+                  <summary><span className="more-t">NASA's independent check, ice and temperature</span><span className="more-s">{sciSummary(sci)}</span></summary>
+                  <ScienceFacts sci={sci} terrain={site.terrain} />
+                </details>
+              )}
+              <details className="more-row">
+                <summary><span className="more-t">Limits of this answer</span><span className="more-s">What the model does not see</span></summary>
+                <p className="limits-text">“Up” means the body's centre is more than ±{s.marginDeg}° above the horizon in its direction.
+                  South of 80° S that horizon is real terrain from NASA LOLA elevation data (80 m pixels, observer 2 m above the ground); detail closer than 240 m is not modelled, so the exact landing spot matters.
+                  Everywhere else it is a smooth lunar sphere, so crater rims and ridges can block a body we show as up. This is a first filter, not a certified tool. Times are UTC.</p>
+              </details>
+            </div>
+          </section>
+        </div>
 
-          <div role="tabpanel" id="view-landing" aria-labelledby="tab-landing" hidden={s.tab !== 'landing'}>
-            {inTileCoverage(site.lat, site.lon)
-              ? <LandingSim site={site} landing={s.landing} appOpts={opts} onPickPoint={simPick} />
-              : <section className="panel"><div className="sec-head"><h2>Landing ellipse</h2>
-                  <p className="sub">The 1,000-touchdown check needs NASA LOLA terrain, which exists only at the south pole (about 80–90° S).
-                    {' '}{site.name} is outside that map. Pick a south-pole site, or click inside the dashed 80° S ring on the 3D Moon.</p></div></section>}
-          </div>
+        <div role="tabpanel" id="view-timeline" aria-labelledby="tab-timeline" hidden={s.tab !== 'timeline'}>
+          <section className="panel">
+            <div className="sec-head">
+              <h2>Over the stay</h2>
+              <p className="sub">Height of the Sun (gold) and Earth (blue) from landing to the end of the stay.{terrainOn && ' Grey dashed line = real terrain in the Sun\'s direction: when gold drops below it, the Sun is hidden.'} Lanes: coloured = available, amber = marginal (inside ±{s.marginDeg}°), dark = not available.</p>
+            </div>
+            <div className="chart-scroll"><Timeline series={series} i0={i0} i1={i1} margin={s.marginDeg} scrubMs={tNow} onScrub={setScrub} /></div>
+            <p className="hint small chart-scroll-hint">Swipe sideways to see the whole stay.</p>
+            <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} />
+          </section>
+          <section className="panel">
+            <div className="sec-head">
+              <h2>What if the launch slips?</h2>
+              <p className="sub">Every landing time in your ± {s.slipDays}-day window, checked the same way. Click a date to load it.</p>
+            </div>
+            <SlipWindow analysis={a} onPick={pickTime} />
+          </section>
+        </div>
 
-          <div role="tabpanel" id="view-team" aria-labelledby="tab-team" hidden={s.tab !== 'team'}>
-            <TeamReview stayDays={s.missionDays} sites={teamSites} landing={s.landing} marginDeg={s.marginDeg} onLoad={teamLoad} />
-          </div>
+        <div role="tabpanel" id="view-landing" aria-labelledby="tab-landing" hidden={s.tab !== 'landing'}>
+          {inTileCoverage(site.lat, site.lon)
+            ? <LandingSim site={site} landing={s.landing} appOpts={opts} onPickPoint={simPick} />
+            : <section className="panel"><div className="sec-head"><h2>Landing ellipse</h2>
+                <p className="sub">The 1,000-touchdown check needs NASA LOLA terrain, which exists only at the south pole (about 80–90° S).
+                  {' '}{site.name} is outside that map. Pick a south-pole site, or click inside the dashed 80° S ring on the 3D Moon.</p></div></section>}
+        </div>
 
-          <div role="tabpanel" id="view-compare" aria-labelledby="tab-compare" hidden={s.tab !== 'compare'}>
-            <section className="panel">
-              <div className="sec-head">
-                <h2>Compare sites for this landing time</h2>
-                <p className="sub">Every preset site with the same date, stay and limits. Click a row to load it.</p>
-              </div>
-              <SiteCompare rows={compareRows} currentId={s.siteId} onPick={pickSite} landing={s.landing} opts={opts} />
-            </section>
-          </div>
+        <div role="tabpanel" id="view-team" aria-labelledby="tab-team" hidden={s.tab !== 'team'}>
+          <TeamReview sites={teamSites} landing={s.landing} marginDeg={s.marginDeg} onLoad={teamLoad} role={s.role}
+            inp={teamAll} setInp={setTeamInp} setField={setTeamField} />
+        </div>
 
-          <footer className="foot2">Not a NASA product; no NASA insignia used. Data, method and sources: <button className="linkbtn" onClick={() => { setShowAbout(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>How it works</button> · <button className="linkbtn" onClick={() => window.print()}>Print or save as PDF</button></footer>
-        </main>
-      </div>
+        <div role="tabpanel" id="view-compare" aria-labelledby="tab-compare" hidden={s.tab !== 'compare'}>
+          <section className="panel">
+            <div className="sec-head">
+              <h2>Compare sites for this landing time</h2>
+              <p className="sub">Every preset site with the same date, stay and limits. Click a row to load it.</p>
+            </div>
+            <SiteCompare rows={compareRows} currentId={s.siteId} onPick={pickSite} landing={s.landing} opts={opts} />
+          </section>
+        </div>
+
+        <footer className="foot2">Not a NASA product; no NASA insignia used. Data, method and sources: <button className="linkbtn" onClick={() => { setShowAbout(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>How it works</button> · <button className="linkbtn" onClick={() => window.print()}>Print or save as PDF</button></footer>
+      </main>
     </div>
   );
 }
 
 // ---- Overview helpers (presentation only) ----
 const ROLES = [
-  { id: 'all', label: 'Everyone' },
-  { id: 'planning', label: 'Mission planning' },
-  { id: 'power', label: 'Power (EPS)' },
-  { id: 'comms', label: 'Communications' },
-  { id: 'landing', label: 'Landing (GNC + hazards)' },
-  { id: 'science', label: 'Science' },
+  { id: 'all', label: 'See everything', sub: 'Every team, every check' },
+  { id: 'planning', label: 'Mission planning', sub: 'Stay, slip window, distance from pole' },
+  { id: 'power', label: 'Power (EPS)', sub: 'Battery, solar arrays' },
+  { id: 'comms', label: 'Communications', sub: 'Gaps in the link to Earth, relay' },
+  { id: 'landing', label: 'Landing (GNC + hazards)', sub: 'Slope, landing accuracy' },
+  { id: 'thermal', label: 'Thermal', sub: 'Temperature limits' },
+  { id: 'science', label: 'Science', sub: 'Water ice nearby' },
 ];
 const ROLE_CARDS = {
   all: { power: true, comms: true, landing: true }, planning: { power: true, comms: true, landing: true },
-  power: { power: true }, comms: { comms: true }, landing: { landing: true }, science: { landing: true },
+  power: { power: true }, comms: { comms: true }, landing: { landing: true }, thermal: { landing: true }, science: { landing: true },
 };
 
 function QIcon({ kind }) {
