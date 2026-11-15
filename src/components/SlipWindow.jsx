@@ -28,6 +28,7 @@ export default function SlipWindow({ analysis, onPick }) {
           Worst case in this window: dark for {fmtDur(summary.worstDarkH)}, no direct comms for {fmtDur(summary.worstCommsGapH)}.
         </span>
       </div>
+      <div className="chart-scroll">
       <svg viewBox={`0 0 ${W} ${H + 22}`} className="slip" role="img" aria-label="Viability of each candidate landing date">
         <defs>
           {/* patterns as well as colours, so the bar reads without colour vision: GO solid, CAUTION dotted, NO-GO hatched */}
@@ -56,8 +57,18 @@ export default function SlipWindow({ analysis, onPick }) {
           <text key={ms} x={x(ms)} y={H + 18} className="axis" textAnchor="middle">{fmtShortUTC(ms).replace(/ \d\d:\d\d$/, '')}</text>
         ))}
       </svg>
+      </div>
+      <p className="hint small chart-scroll-hint">Swipe sideways to see every date.</p>
       <p className="hint">Solid green = GO, dotted amber = CAUTION, hatched red = NO-GO. Each bar is a possible landing time (±{opts.slipDays} days around your target, dashed line). Click a bar to load that date.</p>
-      <h3>Recommended landing dates in this window</h3>
+      {(() => {
+        const nGo = best.filter((b) => b.verdict.status === 'GO').length;
+        return nGo === best.length
+          ? <h3>Recommended landing dates in this window</h3>
+          : nGo === 0
+            ? <><h3>Least-bad landing dates in this window</h3>
+                <p className="hint">No landing time in this window is GO with your settings. These are the strongest of what is there; widen the window or change a limit to find a GO date.</p></>
+            : <h3>Best landing dates in this window <span className="muted small">({nGo} of {best.length} are GO)</span></h3>;
+      })()}
       <ol className="best">
         {best.map((b) => {
           const dd = (b.t - landing) / DAY;
