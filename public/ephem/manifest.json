@@ -73,12 +73,12 @@
    "lon": -67.9442,
    "file": "m88.5932_m67.9442.bin"
   },
-  "m81.3846_m57.5449": {
+  "m83.6167_m68.5993": {
    "id": "peak-near-cabeus-b",
    "name": "Peak near Cabeus B (Artemis III region)",
-   "lat": -81.3846,
-   "lon": -57.5449,
-   "file": "m81.3846_m57.5449.bin"
+   "lat": -83.6167,
+   "lon": -68.5993,
+   "file": "m83.6167_m68.5993.bin"
   },
   "m88.8075_123.7692": {
    "id": "slater-plain",

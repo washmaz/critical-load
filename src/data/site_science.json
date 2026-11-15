@@ -354,38 +354,41 @@
   },
   "peak-near-cabeus-b": {
    "nasaIllumination": {
-    "sunPct": 61.0,
-    "earthPct": 75.5,
+    "sunPct": 68.5,
+    "earthPct": 66,
     "sunRangePct": [
-     38.1,
-     61.0
+     37.5,
+     68.5
     ],
     "earthRangePct": [
-     24.9,
-     76.7
+     49.5,
+     80
+    ],
+    "psr": false,
+    "nearbySunPct": [
+     37.5,
+     68.5
+    ],
+    "nearbyEarthPct": [
+     49.5,
+     80
     ]
    },
    "diviner": {
-    "tempAvgK": 111.2,
-    "tempMaxK": 195.9,
-    "iceDepthM": 0.39,
-    "nearestIceWithin1mKm": 0.13,
-    "nearestSurfaceIceKm": 5.85,
-    "icePctWithin5km": 40.8
+    "tempAvgK": 127,
+    "tempMaxK": 218,
+    "iceDepthM": null,
+    "nearestIceWithin1mKm": 0.38,
+    "icePctWithin5km": 29.5
    },
-   "craters": {
-    "countAtLeast1kmWithin5km": 7,
-    "insideCrater": null,
-    "nearestRimKm": 0.11,
-    "largestAtLeast5kmWithin10km": null
-   },
+   "craters": null,
    "validation": {
-    "oursSunPct": 59.9,
-    "nasaSunPct": 61.0,
-    "diffSun": -1.1,
-    "oursEarthPct": 69.0,
-    "nasaEarthPct": 75.5,
-    "diffEarth": -6.5
+    "oursSunPct": 69.2,
+    "nasaSunPct": 68.5,
+    "diffSun": 0.7,
+    "oursEarthPct": 67.6,
+    "nasaEarthPct": 66,
+    "diffEarth": 1.6
    }
   },
   "slater-plain": {
