@@ -23,7 +23,7 @@ async function evaShare(lat, lon, radiusKm, limitDeg) {
   return n ? ok / n : null;
 }
 
-export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
+function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const [mode, setMode] = useState('check');
   const [presetId, setPresetId] = useState('nasa-artemis3');
   const P = PRESETS[presetId];
@@ -93,35 +93,35 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
         <div className="field"><label htmlFor="preset">Requirements</label>
           <select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
             {Object.entries(PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select></div>
+          </select><small className="field-help">Published lander limits to start from; you can change any value</small></div>
         <div className="field"><label htmlFor="acc">Landing accuracy (99.7 %)</label>
           <select id="acc" value={acc} onChange={(e) => pickAcc(e.target.value)}>
             {Object.entries(ACCURACY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select></div>
+          </select><small className="field-help">Radius that holds 99.7 % of touchdowns. Artemis III: within 100 m</small></div>
         <div className="field"><label htmlFor="sma">Ellipse half-length (m)</label>
-          <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /></div>
+          <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /><small className="field-help">Metres, 1–20,000. E.g. 100</small></div>
         <div className="field"><label htmlFor="smi">Ellipse half-width (m)</label>
-          <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /></div>
+          <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /><small className="field-help">Metres, 1–20,000. E.g. 100 (same as length = circle)</small></div>
         <div className="field"><label htmlFor="saz">Long axis points (° from north)</label>
-          <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /></div>
+          <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /><small className="field-help">Degrees, 0–180, clockwise from north. E.g. 0</small></div>
         <div className="field"><label htmlFor="slp">Max slope (°)</label>
-          <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /></div>
+          <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /><small className="field-help">Steepest ground the lander can stand on, 1–45°. E.g. 10</small></div>
         <div className="field"><label htmlFor="slb">Slope measured over</label>
           <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
             <option value="100">100 m baseline (NASA 5 m elevation where mapped, else 80 m)</option>
             <option value="nasa5m">Lander footprint: NASA 5 m site map + NASA uncertainty</option>
             <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
-          </select></div>
+          </select><small className="field-help">Longer distance = smoother slope. NASA 5 m map is the most detailed</small></div>
         <div className="field"><label htmlFor="pnl">Solar arrays / antenna height</label>
           <select id="pnl" value={panelKey} onChange={(e) => setPanelKey(e.target.value)}>
             {Object.entries(PANEL_HEIGHTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom height in metres" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
-        </div>
+        <small className="field-help">Metres above ground: higher sees over nearby hills</small></div>
         <div className="field"><label htmlFor="tmin">Thermal: lowest avg temp (K, optional)</label>
-          <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /></div>
+          <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /><small className="field-help">Kelvin, optional, 0–400. E.g. 100. Blank = no limit</small></div>
         <div className="field"><label htmlFor="tmax">Thermal: highest max temp (K, optional)</label>
-          <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /></div>
+          <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /><small className="field-help">Kelvin, optional, 0–500. E.g. 390. Blank = no limit</small></div>
         {mode === 'check' && <div className="field sim-go">
           {run ? <button onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
                : <button className="primary" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
@@ -264,9 +264,9 @@ function FindSpot({ site, landing, opts, ell, preset, onPickPoint }) {
         <strong> Stage 2</strong> runs the full 1,000-touchdown check above on the best few, well apart, for your mission dates, and ranks them.</p>
       <div className="sim-controls find-controls">
         <div className="field"><label htmlFor="frad">Search radius (km)</label>
-          <input id="frad" type="number" min="0.5" max="20" step="0.5" value={radiusKm} onChange={(e) => setRadiusKm(Math.min(20, Math.max(0.5, +e.target.value)))} /></div>
+          <input id="frad" type="number" min="0.5" max="20" step="0.5" value={radiusKm} onChange={(e) => setRadiusKm(Math.min(20, Math.max(0.5, +e.target.value)))} /><small className="field-help">Kilometres around the point, 0.5–20. E.g. 3</small></div>
         <div className="field"><label htmlFor="fn">Candidates to fully check</label>
-          <select id="fn" value={nVerify} onChange={(e) => setNVerify(+e.target.value)}>{[1, 2, 3, 4, 5].map((k) => <option key={k} value={k}>{k} (~{(k * 1.7).toFixed(0)} min)</option>)}</select></div>
+          <select id="fn" value={nVerify} onChange={(e) => setNVerify(+e.target.value)}>{[1, 2, 3, 4, 5].map((k) => <option key={k} value={k}>{k} (~{(k * 1.7).toFixed(0)} min)</option>)}</select><small className="field-help">Best spots to run the full 1,000-landing check on</small></div>
         {Object.keys(WLABEL).map((k) => (
           <div className="field" key={k}><label htmlFor={`w-${k}`}>Weight: {WLABEL[k]}</label>
             <input id={`w-${k}`} type="range" min="0" max="5" step="1" value={w[k]} onChange={(e) => setW({ ...w, [k]: +e.target.value })} />
@@ -370,3 +370,5 @@ function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
     </details>
   );
 }
+
+export default React.memo(LandingSim);
