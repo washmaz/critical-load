@@ -42,11 +42,12 @@ export async function pointFacts(lat, lon) {
   const here = scienceAt(sci, lat, lon);
   // 3 x 3 NASA pixels around the point (the "within 180 m" range shown for curated sites)
   const [x, y] = llToXY(lat, lon), g = sci.sun, r = Math.floor((g.y0 - y) / g.pix), c = Math.floor((x - g.x0) / g.pix);
-  const sun3 = [], ear3 = [];
+  const sun3 = [], ear3 = [], sunLit = [], earLit = [];
   for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
     const s = cell(sci.sun, r + dr, c + dc), e = cell(sci.earth, r + dr, c + dc);
     if (s === s && s !== 255) sun3.push(s === 254 ? 0 : s / 2);
     if (e === e && e !== 255) ear3.push(e / 2);
+    if (s === s && s !== 255 && s !== 254) { sunLit.push(s / 2); if (e === e && e !== 255) earLit.push(e / 2); }
   }
   // Diviner ice: share of ground within 5 km with stable ice in the top 1 m
   let n5 = 0, ice5 = 0; const k5 = Math.round(5000 / g.pix);
@@ -66,6 +67,7 @@ export async function pointFacts(lat, lon) {
     nasaIllumination: here.sunPct == null ? null : {
       sunPct: here.sunPct, earthPct: here.earthPct,
       sunRangePct: [Math.min(...sun3), Math.max(...sun3)], earthRangePct: [Math.min(...ear3), Math.max(...ear3)], psr: here.psr,
+      nearbySunPct: sunLit.length ? [Math.min(...sunLit), Math.max(...sunLit)] : null, nearbyEarthPct: earLit.length ? [Math.min(...earLit), Math.max(...earLit)] : null,
     },
     diviner: here.tempAvgK == null ? null : {
       tempAvgK: here.tempAvgK, tempMaxK: here.tempMaxK,

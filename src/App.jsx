@@ -440,10 +440,14 @@ function ScienceFacts({ sci, terrain }) {
     <div className="science">
       <h3 className="group-head">NASA's independent check <span className="muted small">NASA Goddard maps, LRO Diviner, USGS craters</span></h3>
       <div className="terrain-facts">
-        {n && <Metric label="NASA map: sunlit (long-term)" value={`${Math.round(n.sunPct)}%`}
-          sub={`${y ? `vs our ${Math.round(y.terrainSunPct)}% above. ` : ''}NASA 18.6-yr average; within 180 m: ${Math.round(n.sunRangePct[0])}–${Math.round(n.sunRangePct[1])}%`} tone="sun" />}
-        {n && <Metric label="NASA map: Earth in view (long-term)" value={`${Math.round(n.earthPct)}%`}
-          sub={`${y ? `vs our ${Math.round(y.terrainEarthPct)}% above. ` : ''}Within 180 m: ${Math.round(n.earthRangePct[0])}–${Math.round(n.earthRangePct[1])}%`} tone="earth" />}
+        {n && n.psr
+          ? <Metric label="NASA map: sunlit (long-term)" value="Permanent shadow"
+              sub={`Permanently shadowed pixel (NASA LPSR, 120 m).${n.nearbySunPct ? ` Nearby (within 180 m): ${Math.round(n.nearbySunPct[0])}–${Math.round(n.nearbySunPct[1])}% sunlit.` : ''}${y ? ` Our ${Math.round(y.terrainSunPct)}% above can't see a shadowed dip this small: our horizon starts 240 m out on the 80 m map.` : ''}`} tone="sun" />
+          : n && <Metric label="NASA map: sunlit (long-term)" value={`${Math.round(n.sunPct)}%`}
+              sub={`${y ? `vs our ${Math.round(y.terrainSunPct)}% above. ` : ''}NASA 18.6-yr average; within 180 m: ${Math.round(n.sunRangePct[0])}–${Math.round(n.sunRangePct[1])}%`} tone="sun" />}
+        {n && <Metric label="NASA map: Earth in view (long-term)" value={n.psr ? `${Math.round(n.earthPct)}% at this pixel` : `${Math.round(n.earthPct)}%`}
+          sub={n.psr && n.nearbyEarthPct ? `${y ? `vs our ${Math.round(y.terrainEarthPct)}% above. ` : ''}Nearby (within 180 m): up to ${Math.round(n.nearbyEarthPct[1])}%`
+            : `${y ? `vs our ${Math.round(y.terrainEarthPct)}% above. ` : ''}Within 180 m: ${Math.round(n.earthRangePct[0])}–${Math.round(n.earthRangePct[1])}%`} tone="earth" />}
         {d && <Metric label="Water ice (Diviner)" value={ice}
           sub={d.nearestIceWithin1mKm !== null ? `Ice within 1 m of the surface: ${d.nearestIceWithin1mKm} km away · ${d.icePctWithin5km}% of ground within 5 km` : 'No shallow ice within 15 km'} tone="earth" />}
         {d && <Metric label="Ground temperature (Diviner)" value={`avg ${cDeg(d.tempAvgK)}`} sub={`Yearly maximum ${cDeg(d.tempMaxK)}`} tone="sun" />}
