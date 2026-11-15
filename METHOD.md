@@ -61,5 +61,45 @@ Where the source is silent (surface-stay length, battery, thermal limits) the va
 3. Approach-path lighting beyond the touchdown instant (no approach direction in the source).
 4. Ground-station availability on Earth (we check Earth above the terrain, not DSN scheduling).
 
+## 10. Results: full runs for a 2026-11-14 21:00 UTC landing
+
+Settings: NASA Artemis III preset (slope < 10° over 100 m, lit for the whole stay with no battery, direct-to-Earth comms with gaps ≤ 48 h, no relay), 50 m landing radius (strict reading of "100 m x 100 m"), solar arrays/antenna at 2 m, 1,000 touchdowns per site, seed 1, hourly steps. Script: `tools/runs/run_all.mjs` (same engine as the website). Raw output: `data/results/full-runs-v3-2026-11-14.json` (14-day stay) and `data/results/full-runs-v3-7d-2026-11-14.json` (7-day stay).
+
+**Stay length is the mission team's input.** NASA's Artemis III source requires "the surface to be lit for the duration of the surface stay" but gives no duration, so both 14 days (the app default) and 7 days were run.
+
+| Site | Slope data | P(safe), 14-day stay | Fails (of 1,000), 14 d | P(safe), 7-day stay | Fails, 7 d | Median 100 m slope |
+|---|---|---|---|---|---|---|
+| Shackleton rim (ridge junction) | NASA 5 m (Site01, Site04) | 0.0 % [0.0–0.4] | slope 73, power 92, comms 1000 | 0.0 % [0.0–0.4] | slope 73, comms 1000 | 6.7° |
+| Connecting ridge (site C1) | NASA 5 m (Site01) | 0.0 % [0.0–0.4] | slope 34, shadow 820, power 1000, comms 1000 | 0.0 % [0.0–0.4] | slope 34, shadow 820, power 1000, comms 1000 | 9.0° |
+| Malapert Massif (Artemis III region) | NASA 5 m (Site23) | 0.0 % [0.0–0.4] | slope 10, power 1000 | 0.0 % [0.0–0.4] | slope 10, power 1000 | 8.0° |
+| IM-2 Athena (Mons Mouton) | LOLA 80 m (no 5 m map) | 0.0 % [0.0–0.4] | power 1000 | 0.0 % [0.0–0.4] | power 1000 | 2.4° |
+| Nobile Rim 1 (Artemis III region) | NASA 5 m (Site06, Site20v2) | 0.0 % [0.0–0.4] | comms 1000 | 0.0 % [0.0–0.4] | comms 1000 | 3.0° |
+| Nobile Rim 2 (Artemis III region) | NASA 5 m (DM2) | 0.0 % [0.0–0.4] | power 1000 | 100.0 % [99.6–100.0] | none | 1.1° |
+| Haworth (Artemis III region) | NASA 5 m (Haworth) | 0.0 % [0.0–0.4] | power 1000 | 0.0 % [0.0–0.4] | power 1000 | 3.5° |
+| de Gerlache Rim 2 (Artemis III region) | NASA 5 m (Site11, SL2) | 0.0 % [0.0–0.4] | power 1000, comms 16 | 0.0 % [0.0–0.4] | power 1000, comms 16 | 3.9° |
+| Peak near Cabeus B (Artemis III region) | LOLA 80 m (no 5 m map) | 0.0 % [0.0–0.4] | power 1000 | 0.0 % [0.0–0.4] | power 1000 | 4.6° |
+| Slater Plain (Artemis III region) | NASA 5 m (Site07) | 0.0 % [0.0–0.4] | comms 1000 | 0.0 % [0.0–0.4] | comms 1000 | 0.7° |
+| Mons Mouton Plateau (Artemis III region) | NASA 5 m (Site20, Site20v2) | 100.0 % [99.6–100.0] | none | 100.0 % [99.6–100.0] | none | 5.9° |
+
+Brackets are Wilson 95 % intervals. A "fail" count is the number of the 1,000 touchdowns that break that rule (one touchdown can break several).
+
+**What this says**
+- **Mons Mouton Plateau passes everything for either stay length** (1,000 of 1,000 touchdowns safe).
+- **Nobile Rim 2 passes for a 7-day stay but fails power for 14 days**: the Sun goes behind terrain in the second week. Stay length changes the answer here, so the mission team has to set it.
+- Every other site fails one rule for every touchdown on these dates: power (Sun hidden by terrain at some hour), comms (Earth below the terrain horizon for more than 48 h), or permanent shadow (connecting ridge).
+- 9 of 11 sites now use NASA's 5 m elevation for the 100 m slope; IM-2 and the Cabeus B peak are outside NASA's 27 site maps and use the 80 m map.
+
+**Find-a-spot (5 km radius, stage 1 screened ~2,600–3,200 NASA 120 m pixels each, stage 2 ran 1,000 touchdowns on the top 3)**
+
+| Start | Best spot found | Distance | P(safe), 14 d | P(safe), 7 d | What fails |
+|---|---|---|---|---|---|
+| Nobile Rim 1 | 85.2938° S, 36.904° E | 0.49 km | 100 % | 100 % | nothing |
+| Connecting ridge | 89.4762° S, 137.450° W | 2.16 km | 92.8 % | 92.8 % | comms (72 touchdowns) |
+| Shackleton rim | none safe | | 0 % | 0 % | Earth below horizon > 48 h on these dates |
+
+**Compared with the first run (100 m radius, 80 m slope map):** Mons Mouton Plateau 99.8 % → 100 %; the best connecting-ridge spot 76.4 % → 92.8 % (NASA's 5 m elevation gives a 100 m slope of 9.0° there vs 9.5° from the 80 m map, and the tighter ellipse); the Nobile Rim 1 result is unchanged; Shackleton rim's slope failures went from 10 to 73 (the 5 m data resolves rougher ground than the 80 m map).
+
+**Time step check:** hourly vs 10-minute steps gave the same verdict for all 11 sites on 113 dates (largest difference in longest darkness 0.27 h), so hourly steps are kept (`data/results/timestep-test-2026-11-14.json`).
+
 ## Data sources
 NASA LRO LOLA (PGDA products 90, 69, 78), NASA LRO Diviner PRP (PDS Geosciences), USGS Robbins crater database, JPL DE421 / Horizons, NASA Artemis III overview (NTRS 20250009323), ESA Lunar Lander study (De Rosa et al. 2012), ISRO Chandrayaan-3 (arXiv:2308.10712).
