@@ -9,9 +9,11 @@ export function fmtUTC(ms, withTime = true) {
   return withTime ? `${s} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC` : s;
 }
 
+// Month names cached once (same en-GB text as before); toLocaleString per call made chart re-renders slow.
+const MONTHS = Array.from({ length: 12 }, (_, m) => new Date(Date.UTC(2026, m, 1)).toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }));
 export function fmtShortUTC(ms) {
   const d = new Date(ms);
-  const mon = d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' });
+  const mon = MONTHS[d.getUTCMonth()];
   return `${d.getUTCDate()} ${mon} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
 }
 
