@@ -90,6 +90,7 @@ _Link (public, no login): 30-second video with English subtitles._
 | Earth altitude at pole vs astronomy-engine Libration() | −3.842° vs −3.617°; 0.225° gap ≈ expected topocentric parallax |
 | JS engine vs Python terrain pipeline, Connecting ridge, 30 days | 67.9% vs 68.1% sunlit; 31.7% vs 31.7% Earth in view |
 | **JPL Horizons, full table**: 15 sites × 25 dates (2026-11 → 2028-11, every 30 days), Sun + Earth, 750 points, terrain off | max 0.007° on the sky (RMS 0.004°) for both the DE421 tables and the live fallback. Visible/hidden flag disagrees at 1 of 750 points (Shackleton rim, Sun centre within 0.002° of the horizon; the app already calls this marginal) |
+| NASA PGDA 120 m sunlight at the exact Connecting ridge point (89.406°S, 136.2°W) | NASA flags this one 120 m pixel as permanently shadowed (LPSR_75S_120M); the 24 pixels around it are 21–63 % sunlit. Our model says ~60 % because its terrain horizon starts 240 m out, so a dip that small is invisible to it. Verdict is NO-GO either way. Two separate decodes of the NASA data agree |
 
 ## Submission Checklist
 - [ ] All teammates registered at the Oshawa event and listed on the Members tab
