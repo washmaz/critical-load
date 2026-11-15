@@ -305,7 +305,8 @@ export default function App() {
           Sunlight and Earth-visibility check: <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noreferrer">NASA PGDA (Mazarico et al. 2011)</a> ·
           Temperatures and ice: <a href="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/" target="_blank" rel="noreferrer">NASA LRO Diviner</a> ·
           Craters: <a href="https://astrogeology.usgs.gov/search/map/moon_crater_database_v1_robbins" target="_blank" rel="noreferrer">Robbins 2019 (USGS)</a> ·
-          Artemis III regions: <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA (Oct 2024)</a> · Built with Vite + React.</p>
+          Artemis III regions: <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA (Oct 2024)</a> · Built with Vite + React ·
+          Type and colour: <a href="https://www.nasa.gov/nasa-brand-center/brand-guidelines/" target="_blank" rel="noreferrer">NASA Brand Center</a> web typefaces (Inter, Public Sans, DM Mono) and Horizon colour tokens. Not a NASA product; no NASA insignia used.</p>
       </footer>
       <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} site={site} />
     </div>

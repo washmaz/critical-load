@@ -1,7 +1,7 @@
 import React from 'react';
 import { fmtShortUTC, fmtDur, fmtPct, DAY } from '../format.js';
 
-const COLORS = { GO: '#5bd38a', CAUTION: 'url(#slipCaution)', 'NO-GO': 'url(#slipNogo)' };
+const COLORS = { GO: '#47da84', CAUTION: 'url(#slipCaution)', 'NO-GO': 'url(#slipNogo)' };
 const W = 1000, H = 64, PAD = 30;
 
 // One coloured bar per candidate landing date across the ± slip window.
@@ -35,7 +35,7 @@ export default function SlipWindow({ analysis, onPick }) {
             <rect width="6" height="6" fill="#ffb020" /><circle cx="3" cy="3" r="1.1" fill="#7a4d00" />
           </pattern>
           <pattern id="slipNogo" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="6" height="6" fill="#ff6b6b" /><rect width="2" height="6" fill="#7a1f1f" />
+            <rect width="6" height="6" fill="#ff5c52" /><rect width="2" height="6" fill="#7a1f1f" />
           </pattern>
         </defs>
         {scan.map((c) => (
@@ -46,12 +46,12 @@ export default function SlipWindow({ analysis, onPick }) {
         ))}
         {best.map((b, k) => (
           <g key={b.t}>
-            <polygon points={`${x(b.t) - 7},2 ${x(b.t) + 7},2 ${x(b.t)},12`} fill="#e8ecf5" />
-            <text x={x(b.t)} y={H + 2} className="axis" textAnchor="middle" fill="#e8ecf5">#{k + 1}</text>
+            <polygon points={`${x(b.t) - 7},2 ${x(b.t) + 7},2 ${x(b.t)},12`} fill="#ffffff" />
+            <text x={x(b.t)} y={H + 2} className="axis" textAnchor="middle" fill="#ffffff">#{k + 1}</text>
           </g>
         ))}
-        <line x1={x(landing)} x2={x(landing)} y1={2} y2={H - 4} stroke="#0a0f1f" strokeWidth="3" />
-        <line x1={x(landing)} x2={x(landing)} y1={2} y2={H - 4} stroke="#e8ecf5" strokeWidth="1.5" strokeDasharray="3 2" />
+        <line x1={x(landing)} x2={x(landing)} y1={2} y2={H - 4} stroke="#000000" strokeWidth="3" />
+        <line x1={x(landing)} x2={x(landing)} y1={2} y2={H - 4} stroke="#ffffff" strokeWidth="1.5" strokeDasharray="3 2" />
         {ticks.map((ms) => (
           <text key={ms} x={x(ms)} y={H + 18} className="axis" textAnchor="middle">{fmtShortUTC(ms).replace(/ \d\d:\d\d$/, '')}</text>
         ))}

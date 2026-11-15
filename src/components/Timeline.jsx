@@ -66,15 +66,15 @@ export default function Timeline({ series, i0, i1, margin, scrubMs, onScrub }) {
       <rect x={PAD_L} y={y(margin)} width={W - PAD_L - PAD_R} height={Math.max(1, y(-margin) - y(margin))} fill="#ffb020" opacity="0.15" />
       {yTicks.map((v) => (
         <g key={v}>
-          <line x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} stroke="#8e97ad" strokeOpacity={v === 0 ? 0.7 : 0.15} />
+          <line x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} stroke="#b9b9bb" strokeOpacity={v === 0 ? 0.7 : 0.15} />
           <text x={PAD_L - 6} y={y(v) + 4} className="axis" textAnchor="end">{v}°</text>
         </g>
       ))}
       {series.terrain && <path d={line(series.sunHor)} fill="none" stroke="#b9bfcc" strokeWidth="1.5" strokeDasharray="5 4" />}
       {series.terrain && <path d={line(series.earthHor)} fill="none" stroke="#7d8aa5" strokeWidth="1.2" strokeDasharray="2 4" />}
       <path d={line(sunAlt)} fill="none" stroke="#ffc845" strokeWidth="2.5" />
-      <path d={line(earthAlt)} fill="none" stroke="#4da3ff" strokeWidth="2.5" />
-      {[['Power', sunClear, laneY1, '#ffc845'], ['Comms', earthClear, laneY2, '#4da3ff']].map(([lab, vals, ly, c]) => (
+      <path d={line(earthAlt)} fill="none" stroke="#288bff" strokeWidth="2.5" />
+      {[['Power', sunClear, laneY1, '#ffc845'], ['Comms', earthClear, laneY2, '#288bff']].map(([lab, vals, ly, c]) => (
         <g key={lab}>
           <text x={PAD_L - 6} y={ly + 12} className="axis" textAnchor="end">{lab}</text>
           {laneSegments(t, vals, i0, i1, margin, x).map((s, k) => (
@@ -87,8 +87,8 @@ export default function Timeline({ series, i0, i1, margin, scrubMs, onScrub }) {
       ))}
       {scrubMs != null && (
         <g>
-          <line x1={x(scrubMs)} x2={x(scrubMs)} y1={4} y2={laneY2 + LANE + 2} stroke="#e8ecf5" strokeWidth="1.5" />
-          <circle cx={x(scrubMs)} cy={4} r="4" fill="#e8ecf5" />
+          <line x1={x(scrubMs)} x2={x(scrubMs)} y1={4} y2={laneY2 + LANE + 2} stroke="#ffffff" strokeWidth="1.5" />
+          <circle cx={x(scrubMs)} cy={4} r="4" fill="#ffffff" />
         </g>
       )}
     </svg>

@@ -72,13 +72,13 @@ export default function SkyDome({ sun, earth, sunPath, earthPath, margin, zoom, 
           strokeWidth={Math.max(1.5, radius(-margin, zoom) - radius(margin, zoom))} />
         {rings.map((a) => (
           <g key={a}>
-            <circle cx={C} cy={C} r={radius(a, zoom)} fill="none" stroke="#8e97ad" strokeOpacity="0.35" strokeDasharray="4 5" />
+            <circle cx={C} cy={C} r={radius(a, zoom)} fill="none" stroke="#b9b9bb" strokeOpacity="0.35" strokeDasharray="4 5" />
             <text x={C + 4} y={C - radius(a, zoom) - 3} className="dome-ring">{a > 0 ? `+${a}°` : `${a}°`}</text>
           </g>
         ))}
-        <line x1={C - R} y1={C} x2={C + R} y2={C} stroke="#8e97ad" strokeOpacity="0.25" strokeDasharray="4 5" />
-        <line x1={C} y1={C - R} x2={C} y2={C + R} stroke="#8e97ad" strokeOpacity="0.25" strokeDasharray="4 5" />
-        <circle cx={C} cy={C} r={horizonR} fill="none" stroke="#e8ecf5" strokeOpacity={terrain ? 0.35 : 0.8} strokeWidth="2" strokeDasharray={terrain ? '6 5' : 'none'} />
+        <line x1={C - R} y1={C} x2={C + R} y2={C} stroke="#b9b9bb" strokeOpacity="0.25" strokeDasharray="4 5" />
+        <line x1={C} y1={C - R} x2={C} y2={C + R} stroke="#b9b9bb" strokeOpacity="0.25" strokeDasharray="4 5" />
+        <circle cx={C} cy={C} r={horizonR} fill="none" stroke="#ffffff" strokeOpacity={terrain ? 0.35 : 0.8} strokeWidth="2" strokeDasharray={terrain ? '6 5' : 'none'} />
         {terrain && (
           <path d={groundD(terrain.horizon, terrain.azStartDeg, terrain.azStepDeg, zoom)} fillRule="evenodd"
             fill="#6b6f7a" fillOpacity="0.82" stroke="#c9ced8" strokeWidth="1.2" />
@@ -90,9 +90,9 @@ export default function SkyDome({ sun, earth, sunPath, earthPath, margin, zoom, 
         })}
         {/* paths drawn over the ground so you can see where terrain hides them */}
         {sunPath && <path d={pathD(sunPath, zoom)} fill="none" stroke="#ffc845" strokeOpacity="0.45" strokeWidth="2" />}
-        {earthPath && <path d={pathD(earthPath, zoom)} fill="none" stroke="#4da3ff" strokeOpacity="0.45" strokeWidth="2" strokeDasharray="3 4" />}
+        {earthPath && <path d={pathD(earthPath, zoom)} fill="none" stroke="#288bff" strokeOpacity="0.45" strokeWidth="2" strokeDasharray="3 4" />}
         <g opacity={below(earth) ? 0.45 : 1}>
-          <circle cx={earthXY[0]} cy={earthXY[1]} r="9" fill="#4da3ff" stroke="#cfe6ff" strokeWidth="1.5" strokeDasharray={below(earth) ? '3 3' : 'none'} />
+          <circle cx={earthXY[0]} cy={earthXY[1]} r="9" fill="#288bff" stroke="#cfe6ff" strokeWidth="1.5" strokeDasharray={below(earth) ? '3 3' : 'none'} />
         </g>
         <g opacity={below(sun) ? 0.45 : 1}>
           <circle cx={sunXY[0]} cy={sunXY[1]} r="22" fill="url(#sunGlow)" />

@@ -21,7 +21,7 @@ const fromXY = (px, py) => {
   const rho = Math.hypot(x, y);
   return [-(90 - (2 * Math.atan(rho / (2 * R)) * 180) / Math.PI), (Math.atan2(x, y) * 180) / Math.PI];
 };
-const COLOR = { GO: '#5bd38a', CAUTION: '#ffb020', 'NO-GO': '#ff6b6b' };
+const COLOR = { GO: '#47da84', CAUTION: '#ffb020', 'NO-GO': '#ff5c52' };
 const short = (n) => n.replace(/ \(Artemis III region\)/, '').replace(/ \(.*\)$/, '');
 
 export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint }) {
@@ -61,7 +61,7 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
         <image href={V.img} x="0" y="0" width={S} height={S} preserveAspectRatio="none" />
         {V.rings.map((l) => (
           <g key={l}>
-            <circle cx={S / 2} cy={S / 2} r={ring(-l)} fill="none" stroke="#e8ecf5" strokeOpacity="0.35" strokeDasharray="3 5" />
+            <circle cx={S / 2} cy={S / 2} r={ring(-l)} fill="none" stroke="#ffffff" strokeOpacity="0.35" strokeDasharray="3 5" />
             <text x={S / 2 + 4} y={S / 2 - ring(-l) - 4} className="pmap-grid">{l}°S</text>
           </g>
         ))}
@@ -75,7 +75,7 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
             <g key={r.site.id} className="pin" onClick={(e) => { e.stopPropagation(); onPick(r.site.id); }} style={{ cursor: 'pointer' }}>
               <title>{`${r.site.name}: ${r.verdict.status}`}</title>
               {sel && <circle cx={x} cy={y} r="13" fill="none" stroke="#fff" strokeWidth="2" />}
-              <circle cx={x} cy={y} r={sel ? 8 : 6.5} fill={COLOR[r.verdict.status]} stroke="#0a0f1f" strokeWidth="2" />
+              <circle cx={x} cy={y} r={sel ? 8 : 6.5} fill={COLOR[r.verdict.status]} stroke="#000000" strokeWidth="2" />
               {labelled.has(r.site.id) && <text x={x + 10} y={y + 4} className={`pmap-label ${sel ? 'sel' : ''}`}>{short(r.site.name)}</text>}
             </g>
           );
@@ -85,8 +85,8 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
           return <g><path d={`M${x - 8},${y} L${x + 8},${y} M${x},${y - 8} L${x},${y + 8}`} stroke="#fff" strokeWidth="2.5" /><text x={x + 10} y={y + 4} className="pmap-label sel">Your point</text></g>;
         })()}
         <g transform={`translate(${S - scale50 - 16},${S - 18})`}>
-          <rect x="-6" y="-14" width={scale50 + 12} height="22" rx="4" fill="#0a0f1f" fillOpacity="0.7" />
-          <line x1="0" y1="0" x2={scale50} y2="0" stroke="#e8ecf5" strokeWidth="2" />
+          <rect x="-6" y="-14" width={scale50 + 12} height="22" rx="4" fill="#000000" fillOpacity="0.7" />
+          <line x1="0" y1="0" x2={scale50} y2="0" stroke="#ffffff" strokeWidth="2" />
           <text x={scale50 / 2} y="-4" className="pmap-grid" textAnchor="middle">{scaleKm} km</text>
         </g>
       </svg>
