@@ -13,6 +13,7 @@ import Timeline from './components/Timeline.jsx';
 import SlipWindow from './components/SlipWindow.jsx';
 import SiteCompare from './components/SiteCompare.jsx';
 import PolarMap from './components/PolarMap.jsx';
+import MoonGlobalMap from './components/MoonGlobalMap.jsx';
 import TimeBar from './components/TimeBar.jsx';
 import { fmtUTC, fmtShortUTC, fmtDur, fmtPct, fmtLat, fmtLon, toInputUTC, fromInputUTC, relTime, HOUR, DAY } from './format.js';
 
@@ -301,12 +302,12 @@ export default function App() {
 
           <h3 className="group-head">This mission <span className="muted small">from landing to end of mission ({s.missionDays === 29.53 ? '29.5' : s.missionDays} days)</span></h3>
           <div className="cards">
-            <Metric label="Sun elevation at landing" value={`${a.series.sunAlt[i0] >= 0 ? '+' : '−'}${Math.abs(a.series.sunAlt[i0]).toFixed(2)}°`}
-              sub={m.sunlitAtStart ? (m.sunset ? `Sunset ${relTime(s.landing, m.sunset)}` : 'No sunset during mission') : (m.sunrise ? `Sunrise ${relTime(s.landing, m.sunrise)}` : 'No sunrise during mission')} tone="sun" />
+            <Metric label="Sun elevation at landing" value={signedDeg(a.series.sunAlt[i0])}
+              sub={windowNote({ body: 'Sun', clear: a.series.sunClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.sunlitAtStart, end: m.sunset, start: m.sunrise, landing: s.landing })} tone="sun" />
             <Metric label="Sunlit this mission" value={fmtPct(m.sunlitPct)} sub={`+ ${fmtPct(m.sunMarginalPct)} marginal`} tone="sun" />
             <Metric label="Longest dark stretch" value={fmtDur(m.longestDarkH)} sub={`Battery limit ${fmtDur(s.batteryHours)}`} tone={m.longestDarkH > s.batteryHours ? 'bad' : 'sun'} />
-            <Metric label="Earth elevation at landing" value={`${a.series.earthAlt[i0] >= 0 ? '+' : '−'}${Math.abs(a.series.earthAlt[i0]).toFixed(2)}°`}
-              sub={m.earthAtStart ? (m.earthset ? `Earthset ${relTime(s.landing, m.earthset)}` : 'No Earthset during mission') : (m.earthrise ? `Earthrise ${relTime(s.landing, m.earthrise)}` : 'Earth never rises')} tone="earth" />
+            <Metric label="Earth elevation at landing" value={signedDeg(a.series.earthAlt[i0])}
+              sub={windowNote({ body: 'Earth', clear: a.series.earthClear[i0], margin: s.marginDeg, terrain: terrainOn, upAtStart: m.earthAtStart, end: m.earthset, start: m.earthrise, landing: s.landing })} tone="earth" />
             <Metric label="Earth in view this mission" value={fmtPct(m.earthPct)} sub={`+ ${fmtPct(m.earthMarginalPct)} marginal`} tone="earth" />
             <Metric label="Longest comms gap" value={fmtDur(m.longestCommsGapH)} sub={s.relay ? 'Relay assumed' : `Limit ${fmtDur(s.commsGapHours)}`} tone={!s.relay && m.longestCommsGapH > s.commsGapHours ? 'bad' : 'earth'} />
           </div>
@@ -326,6 +327,13 @@ export default function App() {
             <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
               zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
           </div>
+          <details className="panel moon-global">
+            <summary><h2>Whole Moon map (NASA Moon Trek)</h2></summary>
+            <p className="hint">All sites on NASA's LRO Wide Angle Camera global mosaic, coloured by verdict like the map above. Click a pin to load it. South-pole sites cluster along the bottom edge; zoom in with + or use the polar map above for detail.</p>
+            <MoonGlobalMap sites={SITES} currentId={s.siteId} onPick={(id) => set({ siteId: id })}
+              statusById={Object.fromEntries(compareRows.map((r) => [r.site.id, r.verdict.status]))} />
+            <p className="hint">Imagery: LRO WAC Global Mosaic 303 ppd v02, NASA Solar System Treks (Moon Trek), NASA LRO LROC / Arizona State University. Map library: Leaflet.</p>
+          </details>
         </div>
       </section>
 
@@ -338,7 +346,8 @@ export default function App() {
       <section className="panel">
         <h2>Mission timeline</h2>
         <p className="hint">Elevation of the Sun (gold) and Earth (blue) from landing to end of mission.{terrainOn && ' Grey dashed line = height of the real terrain in the Sun\'s direction: when gold drops below it, the Sun is hidden.'} Lanes: coloured = available, amber = marginal (inside the ±{s.marginDeg}° band), dark = not available.</p>
-        <Timeline series={series} i0={i0} i1={i1} margin={s.marginDeg} scrubMs={tNow} onScrub={setScrub} />
+        <div className="chart-scroll"><Timeline series={series} i0={i0} i1={i1} margin={s.marginDeg} scrubMs={tNow} onScrub={setScrub} /></div>
+        <p className="hint small chart-scroll-hint">Swipe sideways to see the whole mission.</p>
       </section>
 
       <section className="panel">
@@ -368,6 +377,21 @@ export default function App() {
       <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} site={site} />
     </div>
   );
+}
+
+// Presentation only: words for the "elevation at landing" cards, built from numbers the engine already returns
+// (clearance above the horizon in the body's direction, and the window start/end from sliceMetrics).
+// "Up" uses the same rule as the verdict: clearance above +margin. Inside +/-margin is the uncertainty band.
+const signedDeg = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(2)}°`;
+function windowNote({ body, clear, margin, terrain, upAtStart, end, start, landing }) {
+  const hor = terrain ? 'terrain' : 'horizon';
+  const where = clear > margin ? `${clear.toFixed(2)}° clear of the ${hor}`
+    : clear >= -margin ? `inside the ±${margin}° band at the ${hor}`
+    : terrain ? `hidden ${(-clear).toFixed(2)}° behind terrain` : 'below the horizon';
+  const next = upAtStart
+    ? (end ? `drops into the ±${margin}° band ${relTime(landing, end)}` : 'stays up all mission')
+    : (start ? `confidently up ${relTime(landing, start)}` : 'never confidently up this mission');
+  return `${body} ${where}; ${next}`;
 }
 
 function Metric({ label, value, sub, tone }) {
