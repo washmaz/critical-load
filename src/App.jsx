@@ -267,8 +267,15 @@ export default function App() {
                 <span className="terrain-flag">{terrainOn ? 'Real terrain (LOLA)' : 'Smooth Moon'}</span></p>
             </div>
           </div>
-          <ul className="reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          {hasTerrain && (
+            <div className="terrain-switch" role="group" aria-label="Horizon model">
+              <button className={!s.terrain ? 'on' : ''} aria-pressed={!s.terrain} onClick={() => set({ terrain: false })}>Smooth Moon</button>
+              <button className={s.terrain ? 'on' : ''} aria-pressed={s.terrain} onClick={() => set({ terrain: true })}>Real NASA terrain</button>
+            </div>
+          )}
           {smooth && <SmoothVs smooth={smooth} real={result} />}
+          <ul className="reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+
           <h3 className="group-head">This mission <span className="muted small">from landing to end of mission ({s.missionDays === 29.53 ? '29.5' : s.missionDays} days)</span></h3>
           <div className="cards">
             <Metric label="Sun elevation at landing" value={`${a.series.sunAlt[i0] >= 0 ? '+' : '−'}${Math.abs(a.series.sunAlt[i0]).toFixed(2)}°`}
@@ -347,6 +354,21 @@ function Metric({ label, value, sub, tone }) {
   );
 }
 
+function FlipBanner({ smooth, real, changes }) {
+  const cls = (x) => (x === 'GO' ? 'go' : x === 'CAUTION' ? 'caution' : 'nogo');
+  return (
+    <div className="flip" role="status">
+      <p className="flip-title">Real terrain changes the answer</p>
+      <div className="flip-row">
+        <div className={`flip-chip ${cls(smooth.verdict.status)}`}><span>Smooth Moon</span><strong>{smooth.verdict.status}</strong></div>
+        <span className="flip-arrow" aria-hidden="true">→</span>
+        <div className={`flip-chip ${cls(real.verdict.status)}`}><span>Real NASA terrain</span><strong>{real.verdict.status}</strong></div>
+      </div>
+      {changes.length > 0 && <p className="flip-detail">{changes.join(' · ')}</p>}
+    </div>
+  );
+}
+
 function SmoothVs({ smooth, real }) {
   const sm = smooth.metrics, rm = real.metrics;
   const sameVerdict = smooth.verdict.status === real.verdict.status;
@@ -355,6 +377,7 @@ function SmoothVs({ smooth, real }) {
   if (d(sm.sunlitPct, rm.sunlitPct)) changes.push(`sunlight ${fmtPct(sm.sunlitPct)} → ${fmtPct(rm.sunlitPct)}`);
   if (d(sm.longestDarkH, rm.longestDarkH)) changes.push(`longest dark ${fmtDur(sm.longestDarkH)} → ${fmtDur(rm.longestDarkH)}`);
   if (d(sm.earthPct, rm.earthPct)) changes.push(`Earth in view ${fmtPct(sm.earthPct)} → ${fmtPct(rm.earthPct)}`);
+  if (!sameVerdict) return <FlipBanner smooth={smooth} real={real} changes={changes} />;
   return (
     <p className={`smooth-vs ${sameVerdict ? '' : 'changed'}`}>
       {sameVerdict

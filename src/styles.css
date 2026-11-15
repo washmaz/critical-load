@@ -250,3 +250,30 @@ button.small { font-size: 13px; padding: 4px 10px; }
 .find-table td:first-child { width: auto; color: var(--txt); }
 .mono { font-family: var(--font-mono); }
 @media (max-width: 760px) { .find-controls { grid-template-columns: 1fr 1fr; } }
+
+/* ---- Demo moment: terrain flips the verdict ---- */
+.terrain-switch { display: inline-flex; margin: 12px 0 2px; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel2); }
+.terrain-switch button { border: 0; border-radius: 999px; background: transparent; padding: 7px 16px; font-weight: 600; color: var(--muted); }
+.terrain-switch button.on { background: var(--nasa-blue); color: #fff; }
+.flip { margin: 12px 0 6px; padding: 14px; border-radius: 12px; border: 2px solid var(--nogo); background: rgba(255,92,82,.08); }
+.flip-title { margin: 0 0 10px; font-family: var(--font-head); font-weight: 700; font-size: 18px; }
+.flip-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.flip-chip { display: flex; flex-direction: column; align-items: center; min-width: 140px; padding: 8px 14px; border-radius: 10px; border: 2px solid; }
+.flip-chip span { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.flip-chip strong { font-family: var(--font-head); font-size: 30px; line-height: 1.1; }
+.flip-chip.go { border-color: var(--go); } .flip-chip.go strong { color: var(--go); }
+.flip-chip.caution { border-color: var(--caution); } .flip-chip.caution strong { color: var(--caution); }
+.flip-chip.nogo { border-color: var(--nogo); } .flip-chip.nogo strong { color: var(--nogo); }
+.flip-arrow { font-size: 30px; color: var(--muted); }
+.flip-detail { margin: 10px 0 0; font-family: var(--font-mono); font-size: 13px; }
+.dome-alert { fill: #ff5c52; font-family: var(--font-head); font-weight: 700; font-size: 15px; paint-order: stroke; stroke: #000; stroke-width: 4px; }
+@media (max-width: 560px) { .flip-chip { min-width: 0; flex: 1; } .flip-chip strong { font-size: 24px; } .flip-arrow { font-size: 22px; } .verdict-badge { font-size: 20px; min-width: 96px; } }
+@media print { .terrain-switch { display: none; } }
+
+.flip-chip strong, .terrain-switch button { white-space: nowrap; }
+@media (max-width: 560px) {
+  .flip { padding: 12px; } .flip-title { font-size: 16px; }
+  .flip-row { flex-wrap: nowrap; gap: 8px; }
+  .flip-chip { padding: 6px 8px; } .flip-chip span { font-size: 10px; } .flip-chip strong { font-size: 21px; }
+  .terrain-switch button { padding: 7px 12px; font-size: 14px; }
+}

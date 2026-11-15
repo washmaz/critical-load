@@ -98,6 +98,14 @@ export default function SkyDome({ sun, earth, sunPath, earthPath, margin, zoom, 
           <circle cx={sunXY[0]} cy={sunXY[1]} r="22" fill="url(#sunGlow)" />
           <circle cx={sunXY[0]} cy={sunXY[1]} r="9" fill="#ffc845" />
         </g>
+        {/* Make the key moment obvious: the Sun is above the smooth horizon but behind real terrain */}
+        {terrain && sun.alt > 0 && below(sun) && (
+          <g>
+            <circle cx={sunXY[0]} cy={sunXY[1]} r="15" fill="none" stroke="#ff5c52" strokeWidth="3" />
+            <path d={`M${sunXY[0] - 10},${sunXY[1] - 10}L${sunXY[0] + 10},${sunXY[1] + 10}`} stroke="#ff5c52" strokeWidth="3" />
+            <text x={C} y={C - 4} textAnchor="middle" className="dome-alert">Sun hidden by terrain</text>
+          </g>
+        )}
       </svg>
       <div className="dome-legend">
         <span><i className="dot sun" /> Sun {sun.alt.toFixed(2)}° · az {sun.az.toFixed(0)}°</span>
