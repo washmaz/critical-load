@@ -21,6 +21,13 @@
 //   Light-time and aberration are ignored (< 0.01° effect).
 
 import { Body, MakeTime, GeoMoon, HelioVector, RotationAxis, Search } from 'astronomy-engine';
+import { getLoadedTable, sampleTable } from './ephemerisStore.js';
+
+// Where Sun/Earth directions come from: 'auto' = NASA JPL DE421 table when one covers the site and date
+// (fast; checked against the live engine when it loads), otherwise live; 'live' = always astronomy-engine.
+let EPHEM_MODE = 'auto';
+export const setEphemerisMode = (m) => { EPHEM_MODE = m === 'live' ? 'live' : 'auto'; };
+export const getEphemerisMode = () => EPHEM_MODE;
 import { horizonAt } from './terrain.js';
 
 export const MOON_RADIUS_KM = 1737.4;
@@ -181,14 +188,25 @@ export function sampleSeries(site, startDate, endDate, stepHours = 1) {
     earthAlt: new Float64Array(n), earthAz: new Float64Array(n),
     earthHor: new Float64Array(n), earthClear: new Float64Array(n), stepMs, terrain: !!site.terrain,
   };
+  const table = EPHEM_MODE === 'live' ? null : getLoadedTable(site);
+  let fromTable = 0;
   for (let i = 0; i < n; i++) {
-    const tt = t0.AddDays((i * stepHours) / 24);
-    const vec = bodyVectors(tt);
-    const s = altAz(vec.sun, site);
-    const e = altAz(vec.earth, site);
-    out.t[i] = start + i * stepMs;
+    const ms = start + i * stepMs;
+    const tab = table && sampleTable(table, ms);
+    let s, e;
+    if (tab) {
+      const sh = horizonAt(site.terrain, tab.sun.az), eh = horizonAt(site.terrain, tab.earth.az);
+      s = { alt: tab.sun.alt, az: tab.sun.az, hor: sh, clear: tab.sun.alt - sh };
+      e = { alt: tab.earth.alt, az: tab.earth.az, hor: eh, clear: tab.earth.alt - eh };
+      fromTable++;
+    } else {
+      const vec = bodyVectors(t0.AddDays((i * stepHours) / 24));
+      s = altAz(vec.sun, site); e = altAz(vec.earth, site);
+    }
+    out.t[i] = ms;
     out.sunAlt[i] = s.alt; out.sunAz[i] = s.az; out.sunHor[i] = s.hor; out.sunClear[i] = s.clear;
     out.earthAlt[i] = e.alt; out.earthAz[i] = e.az; out.earthHor[i] = e.hor; out.earthClear[i] = e.clear;
   }
+  out.tableFraction = fromTable / n;
   return out;
 }

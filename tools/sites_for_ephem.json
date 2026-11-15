@@ -1,10 +1,17 @@
 [
  {"id": "shackleton-rim", "name": "Shackleton rim (ridge junction)", "lat": -89.684, "lon": -163.261},
  {"id": "connecting-ridge", "name": "Connecting ridge (site C1)", "lat": -89.406, "lon": -136.2},
- {"id": "malapert-massif", "name": "Malapert Massif", "lat": -85.98, "lon": -1.67},
+ {"id": "malapert-massif", "name": "Malapert Massif (Artemis III region)", "lat": -85.98, "lon": -1.67},
  {"id": "im2-mons-mouton", "name": "IM-2 Athena (Mons Mouton)", "lat": -84.7906, "lon": 29.1957},
- {"id": "chandrayaan-3", "name": "Chandrayaan-3", "lat": -69.3741, "lon": 32.32},
+ {"id": "chandrayaan-3", "name": "Chandrayaan-3 (Shiv Shakti point)", "lat": -69.3741, "lon": 32.32},
+ {"id": "nobile-rim-1", "name": "Nobile Rim 1 (Artemis III region)", "lat": -85.304, "lon": 37.0581},
+ {"id": "nobile-rim-2", "name": "Nobile Rim 2 (Artemis III region)", "lat": -83.725, "lon": 59.4201},
+ {"id": "haworth", "name": "Haworth (Artemis III region)", "lat": -86.368, "lon": -23.256},
+ {"id": "de-gerlache-rim-2", "name": "de Gerlache Rim 2 (Artemis III region)", "lat": -88.5932, "lon": -67.9442},
+ {"id": "peak-near-cabeus-b", "name": "Peak near Cabeus B (Artemis III region)", "lat": -81.3846, "lon": -57.5449},
+ {"id": "slater-plain", "name": "Slater Plain (Artemis III region)", "lat": -88.8075, "lon": 123.7692},
+ {"id": "mons-mouton-plateau", "name": "Mons Mouton Plateau (Artemis III region)", "lat": -85.4135, "lon": 31.7095},
+ {"id": "change-4", "name": "Chang'e 4 (far side)", "lat": -45.4562, "lon": 177.5885},
  {"id": "apollo-11", "name": "Apollo 11", "lat": 0.67416, "lon": 23.47314},
- {"id": "apollo-17", "name": "Apollo 17", "lat": 20.1911, "lon": 30.7723},
- {"id": "change-4", "name": "Chang'e 4", "lat": -45.4562, "lon": 177.5885}
+ {"id": "apollo-17", "name": "Apollo 17", "lat": 20.1911, "lon": 30.7723}
 ]

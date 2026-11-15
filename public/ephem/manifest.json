@@ -7,7 +7,7 @@
  "ephemeris": "JPL DE421 (de421.bsp) + moon_pa_de421_1900-2050.bpc",
  "radiusKm": 1737.4,
  "corrections": "apparent (light-time + stellar aberration), no refraction",
- "generated": "2026-11-14T22:25Z",
+ "generated": "2026-11-14T23:41Z",
  "tool": "tools/precompute_ephemeris.py (Skyfield)",
  "sites": {
   "m89.6840_m163.2610": {
@@ -26,7 +26,7 @@
   },
   "m85.9800_m1.6700": {
    "id": "malapert-massif",
-   "name": "Malapert Massif",
+   "name": "Malapert Massif (Artemis III region)",
    "lat": -85.98,
    "lon": -1.67,
    "file": "m85.9800_m1.6700.bin"
@@ -40,10 +40,66 @@
   },
   "m69.3741_32.3200": {
    "id": "chandrayaan-3",
-   "name": "Chandrayaan-3",
+   "name": "Chandrayaan-3 (Shiv Shakti point)",
    "lat": -69.3741,
    "lon": 32.32,
    "file": "m69.3741_32.3200.bin"
+  },
+  "m85.3040_37.0581": {
+   "id": "nobile-rim-1",
+   "name": "Nobile Rim 1 (Artemis III region)",
+   "lat": -85.304,
+   "lon": 37.0581,
+   "file": "m85.3040_37.0581.bin"
+  },
+  "m83.7250_59.4201": {
+   "id": "nobile-rim-2",
+   "name": "Nobile Rim 2 (Artemis III region)",
+   "lat": -83.725,
+   "lon": 59.4201,
+   "file": "m83.7250_59.4201.bin"
+  },
+  "m86.3680_m23.2560": {
+   "id": "haworth",
+   "name": "Haworth (Artemis III region)",
+   "lat": -86.368,
+   "lon": -23.256,
+   "file": "m86.3680_m23.2560.bin"
+  },
+  "m88.5932_m67.9442": {
+   "id": "de-gerlache-rim-2",
+   "name": "de Gerlache Rim 2 (Artemis III region)",
+   "lat": -88.5932,
+   "lon": -67.9442,
+   "file": "m88.5932_m67.9442.bin"
+  },
+  "m81.3846_m57.5449": {
+   "id": "peak-near-cabeus-b",
+   "name": "Peak near Cabeus B (Artemis III region)",
+   "lat": -81.3846,
+   "lon": -57.5449,
+   "file": "m81.3846_m57.5449.bin"
+  },
+  "m88.8075_123.7692": {
+   "id": "slater-plain",
+   "name": "Slater Plain (Artemis III region)",
+   "lat": -88.8075,
+   "lon": 123.7692,
+   "file": "m88.8075_123.7692.bin"
+  },
+  "m85.4135_31.7095": {
+   "id": "mons-mouton-plateau",
+   "name": "Mons Mouton Plateau (Artemis III region)",
+   "lat": -85.4135,
+   "lon": 31.7095,
+   "file": "m85.4135_31.7095.bin"
+  },
+  "m45.4562_177.5885": {
+   "id": "change-4",
+   "name": "Chang'e 4 (far side)",
+   "lat": -45.4562,
+   "lon": 177.5885,
+   "file": "m45.4562_177.5885.bin"
   },
   "0.6742_23.4731": {
    "id": "apollo-11",
@@ -58,13 +114,6 @@
    "lat": 20.1911,
    "lon": 30.7723,
    "file": "20.1911_30.7723.bin"
-  },
-  "m45.4562_177.5885": {
-   "id": "change-4",
-   "name": "Chang'e 4",
-   "lat": -45.4562,
-   "lon": 177.5885,
-   "file": "m45.4562_177.5885.bin"
   }
  }
 }

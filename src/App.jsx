@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { SITES, DEFAULT_SITE_ID, siteById, validateLatLon, normLon } from './engine/sites.js';
 import { analyzeSite, compareSites, DEFAULTS } from './engine/analysis.js';
 import { withTerrain, terrainFor } from './engine/terrain.js';
+import { scienceFor, SCIENCE_SOURCES, loadCraters, cratersNear } from './engine/science.js';
+import { loadTable, getStatus, horizonsUrl } from './engine/ephemerisStore.js';
+import { skyAt, setEphemerisMode } from './engine/lunarSky.js';
 import SkyDome from './components/SkyDome.jsx';
 import Timeline from './components/Timeline.jsx';
 import SlipWindow from './components/SlipWindow.jsx';
@@ -27,6 +30,7 @@ function readHash() {
     commsGapHours: num('comms', DEFAULTS.commsGapHours),
     relay: p.get('relay') === '1',
     terrain: p.get('terrain') !== '0',   // real LOLA terrain on by default
+    ephem: p.get('ephem') === 'live' ? 'live' : 'auto',
   };
 }
 function writeHash(s) {
@@ -38,6 +42,7 @@ function writeHash(s) {
   p.set('battery', s.batteryHours); p.set('comms', s.commsGapHours);
   if (s.relay) p.set('relay', '1');
   if (!s.terrain) p.set('terrain', '0');
+  if (s.ephem === 'live') p.set('ephem', 'live');
   window.history.replaceState(null, '', `#${p.toString()}`);
 }
 
@@ -58,12 +63,25 @@ export default function App() {
   const [showAbout, setShowAbout] = useState(false);
 
   useEffect(() => writeHash(s), [s]);
+  const [ephemTick, setEphemTick] = useState(0);
+  const [craters, setCraters] = useState(null);
   useEffect(() => setScrub(null), [s.landing, s.siteId, s.missionDays]);
 
   const baseSite = s.siteId === 'custom'
     ? { id: 'custom', name: `Custom (${fmtLat(s.customLat)}, ${fmtLon(s.customLon)})`, group: 'Custom', lat: s.customLat, lon: s.customLon }
     : siteById(s.siteId) || siteById(DEFAULT_SITE_ID);
   const hasTerrain = !!terrainFor(baseSite.id);
+  setEphemerisMode(s.ephem);
+  // Load the NASA JPL table for this site (if one exists) and re-run the analysis when it arrives.
+  useEffect(() => {
+    let live = true;
+    const liveFn = (x, d) => { const r = skyAt({ lat: x.lat, lon: x.lon }, d); return { sun: r.sun, earth: r.earth }; };
+    loadTable({ lat: baseSite.lat, lon: baseSite.lon }, liveFn).then(() => { if (live) setEphemTick((n) => n + 1); });
+    return () => { live = false; };
+  }, [baseSite.lat, baseSite.lon]);
+  useEffect(() => { if (s.siteId === 'custom') loadCraters().then(setCraters); }, [s.siteId]);
+  const ephemStatus = getStatus({ lat: baseSite.lat, lon: baseSite.lon });
+  const sci = scienceFor(baseSite.id);
   const site = withTerrain(baseSite, s.terrain);
   const terrainOn = !!site.terrain;
 
@@ -71,7 +89,7 @@ export default function App() {
     slipDays: s.slipDays, missionDays: s.missionDays, marginDeg: s.marginDeg,
     batteryHours: s.batteryHours, commsGapHours: s.commsGapHours, relay: s.relay,
   };
-  const deps = [site.lat, site.lon, s.landing, s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, terrainOn];
+  const deps = [site.lat, site.lon, s.landing, s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, terrainOn, s.ephem, ephemTick];
   const a = useMemo(() => analyzeSite(site, s.landing, opts), deps);
   // Same question on a smooth Moon, so planners see what terrain changes (only when terrain is on).
   const smooth = useMemo(() => (terrainOn ? analyzeSite(baseSite, s.landing, { ...opts, slipDays: 0 }).result : null), deps);
@@ -120,7 +138,7 @@ export default function App() {
         <div className="field wide">
           <label htmlFor="site">Landing site</label>
           <select id="site" value={s.siteId} onChange={(e) => set({ siteId: e.target.value })}>
-            {['South pole', 'Other sites'].map((g) => (
+            {['South pole', 'Artemis III regions', 'Other sites'].map((g) => (
               <optgroup key={g} label={g}>
                 {SITES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </optgroup>
@@ -140,6 +158,7 @@ export default function App() {
               {customErr && <span className="error">{customErr}</span>}
             </div>
           )}
+          {s.siteId === 'custom' && <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={hasTerrain} />}
         </div>
         <div className="field">
           <label htmlFor="date">Target landing (UTC)</label>
@@ -184,6 +203,18 @@ export default function App() {
             <input type="checkbox" checked={s.terrain} onChange={(e) => set({ terrain: e.target.checked })} />
             Use real terrain (NASA LOLA){!hasTerrain && <span className="muted"> · not available for this site</span>}
           </label>
+          <label htmlFor="ephem" title="Where the Sun and Earth positions come from">Sun &amp; Earth positions</label>
+          <select id="ephem" value={s.ephem} onChange={(e) => set({ ephem: e.target.value })}>
+            <option value="auto">NASA JPL DE421 table (fast), live backup</option>
+            <option value="live">Live calculation (astronomy-engine)</option>
+          </select>
+          <p className="hint small">
+            {s.ephem === 'live' ? 'Computing live in your browser.' : ephemStatus.state === 'ready'
+              ? `Using the JPL table (agrees with live to ${ephemStatus.check ? ephemStatus.check.maxDiffDeg.toFixed(3) : '0.01'}°).`
+              : `${ephemStatus.detail}; using live calculation.`}
+            {' '}<a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '10')} target="_blank" rel="noreferrer">Check the Sun on JPL Horizons</a>
+            {' · '}<a href={horizonsUrl(site, s.landing, s.landing + 24 * 3600e3, '399')} target="_blank" rel="noreferrer">Earth</a>
+          </p>
         </div>
       </section>
 
@@ -211,6 +242,7 @@ export default function App() {
             <Metric label="Longest comms gap" value={fmtDur(m.longestCommsGapH)} sub={s.relay ? 'Relay assumed' : `Limit ${fmtDur(s.commsGapHours)}`} tone={!s.relay && m.longestCommsGapH > s.commsGapHours ? 'bad' : 'earth'} />
           </div>
           {terrainOn && <TerrainFacts t={site.terrain} />}
+          {sci && <ScienceFacts sci={sci} terrain={site.terrain} />}
         </div>
         <div className="panel">
           <h2>Sky at {fmtShortUTC(tNow)} UTC</h2>
@@ -238,11 +270,16 @@ export default function App() {
 
       <footer className="foot">
         <p><strong>Honest limits:</strong> “Up” means the body's centre is more than ±{s.marginDeg}° above the horizon in its direction.
-          For the four south-polar sites that horizon is real terrain from NASA LOLA elevation data (80 m pixels, observer 2 m above the ground; detail closer than 240 m is not modelled, so the exact landing spot matters).
+          For the south-polar sites (south of 80°S) that horizon is real terrain from NASA LOLA elevation data (80 m pixels, observer 2 m above the ground; detail closer than 240 m is not modelled, so the exact landing spot matters).
           Everywhere else it is a smooth lunar sphere, so crater rims and ridges can block a body we show as up. Times are UTC.</p>
         <p>Ephemeris: <a href="https://github.com/cosinekitty/astronomy" target="_blank" rel="noreferrer">astronomy-engine</a> (MIT) ·
           Moon orientation: IAU WGCCRE 2015 (Archinal et al. 2018) ·
-          Terrain: NASA LRO LOLA south-pole maps (<a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">Barker et al. 2023, PSJ 4, 183</a>) · Built with Vite + React.</p>
+          Terrain: NASA LRO LOLA south-pole maps (<a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">Barker et al. 2023, PSJ 4, 183</a>) ·
+          Ephemeris tables: JPL DE421 (Folkner et al. 2008) via Skyfield ·
+          Sunlight and Earth-visibility check: <a href="https://pgda.gsfc.nasa.gov/products/69" target="_blank" rel="noreferrer">NASA PGDA (Mazarico et al. 2011)</a> ·
+          Temperatures and ice: <a href="https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/" target="_blank" rel="noreferrer">NASA LRO Diviner</a> ·
+          Craters: <a href="https://astrogeology.usgs.gov/search/map/moon_crater_database_v1_robbins" target="_blank" rel="noreferrer">Robbins 2019 (USGS)</a> ·
+          Artemis III regions: <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA (Oct 2024)</a> · Built with Vite + React.</p>
       </footer>
     </div>
   );
@@ -282,6 +319,45 @@ function TerrainFacts({ t }) {
   );
 }
 
+
+const cDeg = (k) => `${Math.round(k - 273.15)} °C`;
+
+function ScienceFacts({ sci, terrain }) {
+  const n = sci.nasaIllumination, d = sci.diviner, c = sci.craters, y = terrain && terrain.yearly;
+  const ice = d && (d.iceDepthM === null ? 'None in top 2.9 m' : d.iceDepthM === 0 ? 'At the surface' : `${d.iceDepthM} m down`);
+  return (
+    <div className="science">
+      <h3>NASA data for this spot</h3>
+      <div className="terrain-facts">
+        {n && <Metric label="NASA map: sunlit" value={`${Math.round(n.sunPct)}%`}
+          sub={`${y ? `Our 1-yr terrain model: ${Math.round(y.terrainSunPct)}%. ` : ''}NASA 18.6-yr average; within 180 m: ${Math.round(n.sunRangePct[0])}–${Math.round(n.sunRangePct[1])}%`} tone="sun" />}
+        {n && <Metric label="NASA map: Earth in view" value={`${Math.round(n.earthPct)}%`}
+          sub={`${y ? `Our 1-yr terrain model: ${Math.round(y.terrainEarthPct)}%. ` : ''}Within 180 m: ${Math.round(n.earthRangePct[0])}–${Math.round(n.earthRangePct[1])}%`} tone="earth" />}
+        {d && <Metric label="Water ice (Diviner)" value={ice}
+          sub={d.nearestIceWithin1mKm !== null ? `Ice within 1 m of the surface: ${d.nearestIceWithin1mKm} km away · ${d.icePctWithin5km}% of ground within 5 km` : 'No shallow ice within 15 km'} tone="earth" />}
+        {d && <Metric label="Ground temperature (Diviner)" value={`avg ${cDeg(d.tempAvgK)}`} sub={`Yearly maximum ${cDeg(d.tempMaxK)}`} tone="sun" />}
+        {c && <Metric label="Craters ≥ 1 km within 5 km" value={`${c.countAtLeast1kmWithin5km}`}
+          sub={`${c.insideCrater ? `Inside a ${c.insideCrater.diamKm} km crater · ` : ''}nearest crater rim ${c.nearestRimKm} km (Robbins 2019)`} tone={c.nearestRimKm < 0.3 ? 'bad' : 'earth'} />}
+      </div>
+      <p className="hint small">NASA's map is an independent check made by NASA Goddard with a different method and time span, so a few % difference is expected; a big gap means the exact spot sits on a steep edge where a few hundred metres matters.</p>
+    </div>
+  );
+}
+
+function CustomCraterNote({ craters, lat, lon, terrain }) {
+  const near = useMemo(() => cratersNear(craters, lat, lon), [craters, lat, lon]);
+  if (!craters) return <p className="hint small">Loading the Robbins crater database (USGS)…</p>;
+  if (!near) return null;
+  const inside = near.inside[0];
+  return (
+    <p className={`hint small ${inside ? 'warn' : ''}`}>
+      {inside ? <><strong>Inside a {inside.diamKm} km crater</strong> ({inside.distKm} km from its centre). </> : 'Not inside any crater 3 km or larger. '}
+      {near.nearby} crater rims within 10 km; nearest rim {near.nearestRimKm} km away (Robbins 2019, craters ≥ 3 km).
+      {!terrain && ' No terrain model here, so crater walls can hide the Sun or Earth.'}
+    </p>
+  );
+}
+
 function About() {
   return (
     <section className="panel about">
@@ -294,6 +370,15 @@ function About() {
         <li><strong>Verdict.</strong> Power is the deal-breaker: if the longest dark stretch is longer than the battery can survive, it's NO-GO. Comms gaps can be fixed with a relay satellite, so they give CAUTION.</li>
         <li><strong>Slip window.</strong> We repeat everything for every possible landing time in your uncertainty window and recommend the strongest dates.</li>
       </ol>
+      <h3>Data sources</h3>
+      <ul className="sources">
+        <li><strong>Terrain, slope, ice traps:</strong> NASA LRO LOLA south-pole maps, 80 m (Barker et al. 2023, PSJ 4, 183) · <a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">NASA PGDA</a></li>
+        <li><strong>Sunlight and Earth-visibility check:</strong> {SCIENCE_SOURCES.nasaIllumination}</li>
+        <li><strong>Temperature and ice depth:</strong> {SCIENCE_SOURCES.diviner}</li>
+        <li><strong>Craters:</strong> {SCIENCE_SOURCES.craters}</li>
+        <li><strong>Sun and Earth positions:</strong> JPL DE421 planetary and lunar ephemeris (Folkner et al. 2008, via Skyfield) with astronomy-engine as the live backup; spot checks on <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noreferrer">JPL Horizons</a></li>
+        <li><strong>Artemis III regions:</strong> <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA, 28 Oct 2024</a>. NASA does not publish exact points, so each preset is the sunniest spot with slope under 8° in that region's area, picked with NASA data (search area listed under each site).</li>
+      </ul>
       <h3>Site sources</h3>
       <ul className="sources">
         {SITES.map((x) => <li key={x.id}><strong>{x.name}</strong>: <a href={x.url} target="_blank" rel="noreferrer">{x.source}</a></li>)}

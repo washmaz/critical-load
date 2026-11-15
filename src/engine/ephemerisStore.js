@@ -14,12 +14,20 @@
 
 export const CHECK_TOLERANCE_DEG = 0.1;
 
+// Data files may be served gzipped (smaller deploys). Unpack in the browser when the gzip magic bytes are present.
+export async function maybeGunzip(buf) {
+  const u = new Uint8Array(buf);
+  if (u.length < 2 || u[0] !== 0x1f || u[1] !== 0x8b || typeof DecompressionStream === 'undefined') return buf;
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+}
+
+
 let cfg = {
   baseUrl: '/ephem/',
   fetchBytes: async (url) => {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-    return r.arrayBuffer();
+    return maybeGunzip(await r.arrayBuffer());
   },
 };
 let manifestPromise = null;
