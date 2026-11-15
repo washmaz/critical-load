@@ -2,7 +2,7 @@
 
 **Team Critical Load: NASA Space Apps Challenge 2026 (Nov 14–15), Oshawa local event**
 
-> Submission deadline: **Sunday, Nov 15, 11:59 p.m.** local time (internal target **8:00 p.m.**). Click **Submit for Judging** on the Space Apps Project tab. Saving is not submitting.
+> Submission deadline: **Sunday, Nov 15, 11:59 p.m.** local time (team target **12:00 p.m.**). Click **Submit for Judging** on the Space Apps Project tab. Saving is not submitting.
 
 ## Team
 - Washma ([@washmaz](https://github.com/washmaz)): project lead, testing, demo, submission
@@ -12,8 +12,8 @@
 ## Challenge
 Lunar Landing Site Navigator
 
-## High-Level Summary (DRAFT)
-Lunar Landing Site Navigator is a free web app that answers two questions for any spot on the Moon at any date: will a lander have sunlight for power, and can it see Earth to radio home? Pick a site, pick a time, and see the Sun and Earth on a simple sky dome against the real horizon, plus plain answers like "sunlit for 9 more days" and "Earth rises in 2 days". We focus on the lunar south pole, where Artemis plans to land: there the Sun skims the horizon and Earth bobs up and down, so hills and crater rims decide everything. Using NASA LOLA terrain, the app shows how sites a few kilometres apart can flip from GO to NO-GO. NASA's existing tools are powerful but built for experts; ours puts the same answers in front of students, educators and early-stage mission planners in seconds.
+## High-Level Summary
+Lunar Landing Site Navigator is a free web app that answers the two questions every lander at the Moon's south pole depends on: will it have sunlight for power, and can it see Earth to radio home? Pick a site and a date, and the app shows the Sun and Earth against the real horizon, with a plain GO / CAUTION / NO-GO verdict. At the south pole, where Artemis plans to land, the Sun skims the horizon, so hills and crater rims decide everything. Using NASA LOLA terrain, the app shows how a site that looks sunny on a smooth Moon can be NO-GO in reality, and how sites a few kilometres apart differ. It also simulates 1,000 landings around a target to estimate the chance of a safe touchdown, and can search nearby for better spots. NASA's existing tools are powerful but built for experts; ours gives students, educators and early-stage planners the same answers in seconds, with every position checked against NASA JPL data.
 
 ## Project Demo
 _Link (public, no login): 30-second video with English subtitles._
@@ -31,35 +31,42 @@ _Link (public, no login): 30-second video with English subtitles._
 ## Final Project
 - Live app: https://critical-load.vercel.app
 - Code: https://github.com/washmaz/critical-load
+- Method, step by step with sources: METHOD.md · Data layer: DATA_LAYER.md · NASA data pipelines: tools/science/README.md
 
 ## Detailed Description
-- What it does: pick a lunar site and date/time; see Sun and Earth on a sky dome with the real terrain horizon, solar elevation, sunlit / Earth-visible status, time to next sunset/Earthset, a ~30-day timeline, and side-by-side site comparison. A "Use real terrain (NASA LOLA)" toggle shows how much terrain changes the answer.
-- How it works: the Moon's geocentric and heliocentric J2000 vectors come from astronomy-engine. They are rotated into the Moon's body-fixed frame with the IAU WGCCRE 2015 lunar rotation model (including libration terms), then converted to a local East-North-Up frame at the site (mean radius 1737.4 km, so Earth's parallax is included). For sites south of 80°S, a terrain horizon is precomputed from the NASA LOLA 80 m/pixel south-pole elevation map: 720 directions (0.5° apart), ray-marched from 240 m out to the edge of the map, observer 2 m above the ground. The Sun or Earth counts as visible only when its centre is above that horizon. The app also shows local slope (LOLA slope map) and distance to the nearest permanently shadowed region larger than 1 km² (potential ice trap).
-- Known limits: sites north of 80°S use a smooth-sphere horizon (and say so). Terrain detail closer than 240 m is not modelled. Light-time and aberration are ignored (< 0.01°). Visibility uses the centre of the Sun/Earth disc.
-- Benefits (DRAFT): answers in seconds instead of expert software; plain-language GO / CAUTION / NO-GO verdicts; real NASA terrain shows why nearby sites differ; side-by-side comparison; runs in any browser with no install or login; transparent method with a published validation table.
-- What we hope to achieve (DRAFT): help students and educators understand why the south pole is hard, and give early-stage planners a quick first filter before detailed analysis in tools like Moon Trek or Lunar QuickMap. Next steps: finer-resolution terrain near each site, animation over a lunar day, orbiter relay visibility.
-- Stack: Vite + React (JS), client-side only; astronomy-engine; Python terrain pipeline (offline); SVG sky dome; deployed on Vercel.
+- What it does: pick a lunar site (Apollo, Chang'e, Chandrayaan-3, IM-2, 9 Artemis III candidate regions, or custom coordinates) and a date; see Sun and Earth on a sky dome with the real terrain horizon, a GO / CAUTION / NO-GO verdict for power and direct-to-Earth comms, time to next sunset/Earthset, a 30-day timeline, side-by-side comparison (slope, nearest ice trap, temperature, craters), a 1,000-touchdown landing simulation, and "find me a spot". A "Smooth Moon / Real NASA terrain" switch shows how much terrain changes the answer.
+- How it works: Sun/Earth positions come from NASA JPL DE421 (precomputed for preset sites through 2028) with a live astronomy-engine fallback (IAU WGCCRE 2015 lunar orientation) for any site/date; the two agree within 0.013°. Positions are converted to the local East-North-Up frame at the site (mean radius 1737.4 km, so Earth's parallax is included). For sites south of 80°S, a terrain horizon is computed from the NASA LOLA 80 m/pixel south-pole elevation map: 720 directions (0.5° apart), ray-marched from 240 m out to the edge of the map, with the observer at the **solar-array height** (presets: ESA 2 m / 1.2 m, NASA VSAT 9.75 m, or custom). The Sun or Earth counts as visible only when its centre is above that horizon. Slope is evaluated over a 100 m baseline (NASA Artemis wording) or from the NASA LOLA slope map.
+- Landing simulation: touchdowns are scattered around the target with 50 m (strict, default) or 100 m accuracy. **Assumption:** NASA does not state a probability for "land within 100 m"; we assume 99.7 % of landings fall within that distance, which for a zero-mean 2-D scatter means a half-axis of 3.41σ (not 3σ, which holds only 98.9 %).
+- Known limits: sites north of 80°S use a smooth-sphere horizon (and say so). Terrain detail smaller than the 80 m LOLA pixels (e.g. boulders) is not modelled. Light-time and aberration are ignored in the live fallback engine only (< 0.01°); the JPL DE421 tables include them. Visibility uses the centre of the Sun/Earth disc. Launch windows and trajectories are out of scope.
+- Benefits: answers in seconds instead of expert software; plain-language verdicts; real NASA terrain shows why nearby sites differ; runs in any browser with no install or login; open code and a published validation table.
+- What we hope to achieve: help students and educators understand why the south pole is hard, and give early-stage planners a quick first filter before detailed analysis in tools like Moon Trek or Lunar QuickMap.
+- Stack: Vite + React (JS), client-side only; astronomy-engine; Python pipelines (numpy, pandas, rasterio, shapely, Skyfield); SVG sky dome; deployed on Vercel.
 
 ## NASA Data Used
-_At least one NASA data source is required for Global Awards._
-- **NASA LOLA (Lunar Orbiter Laser Altimeter), via NASA GSFC PGDA "A New View of the Lunar South Pole from LOLA":** LDEM_80S_80MPP_ADJ (80 m/px elevation), LDSM_80S_80MPP_ADJ (slope), LPSR_80S_20MPP_ADJ_1km2 (permanently shadowed regions > 1 km²). Used for terrain horizons, slope and nearest ice trap.
-- **JPL DE421 planetary and lunar ephemeris (NASA JPL, via NAIF SPICE kernels):** precomputed Sun/Earth positions for the preset sites (see DATA_LAYER.md).
-- **JPL Horizons:** independent validation of Sun/Earth azimuth & elevation at lunar sites, also available live in the app via /api/horizons.
-- _More datasets (Artemis III regions, NASA PGDA illumination, Diviner, crater database): see tools/science/README.md and DATA_LAYER.md; to be summarised here._
+- **NASA LRO LOLA south-pole topography** (NASA GSFC PGDA, "A New View of the Lunar South Pole from LOLA"): LDEM_80S_80MPP_ADJ (80 m elevation), LDSM_80S_80MPP_ADJ (slope), LPSR_80S_20MPP_ADJ_1km2 (permanently shadowed regions > 1 km²). Terrain horizons, slope, nearest ice trap.
+- **NASA PGDA Lunar Polar Illumination** (AVGVISIB_75S_120M_201608, sunlight + Earth visibility averaged over 18.6 years): choosing Artemis III region points and independent validation.
+- **NASA PGDA high-resolution 5 m LOLA site DEMs** (products/78): search areas for priority sites.
+- **NASA JPL DE421 planetary and lunar ephemeris** (NAIF SPICE kernels): precomputed Sun/Earth positions (see DATA_LAYER.md).
+- **NASA JPL Horizons:** independent validation; also live in the app via /api/horizons.
+- **NASA LRO Diviner Polar Resource Product** (PDS Geosciences Node): temperature and depth to stable ice.
+- **NASA Artemis III landing limits** (NTRS 20240009596, Artemis HLS update 2024; NTRS 20250009323, Space Apps 2025 overview): slope < 10° over 100 m, land within 100 m, within 6° of the pole, direct-to-Earth comms, lighting.
 
 ## Space Agency Partner Data & Other References
-- Barker, M. K. et al. (2023), "A New View of the Lunar South Pole from the Lunar Orbiter Laser Altimeter (LOLA)", Planetary Science Journal 4, 183, doi:10.3847/PSJ/acf3e1. Data: doi:10.60903/gsfcpgda-lola-spole, https://pgda.gsfc.nasa.gov/products/90
+- Barker, M. K. et al. (2023), Planetary Science Journal 4, 183, doi:10.3847/PSJ/acf3e1. Data: doi:10.60903/gsfcpgda-lola-spole, https://pgda.gsfc.nasa.gov/products/90
+- Mazarico, E. et al. (2011), Illumination conditions of the lunar polar regions using LOLA topography, Icarus 211, 1066–1081. Data: https://pgda.gsfc.nasa.gov/products/69
+- NASA PGDA, High-Resolution LOLA Topography for Lunar South Pole Sites: https://pgda.gsfc.nasa.gov/products/78
 - Folkner, W. M., Williams, J. G., Boggs, D. H. (2008), The Planetary and Lunar Ephemeris DE 421, JPL IOM 343R-08-003; NAIF SPICE kernels: https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
 - JPL Horizons System API: https://ssd-api.jpl.nasa.gov/doc/horizons.html
-- astronomy-engine, Don Cross, MIT licence: https://github.com/cosinekitty/astronomy
-- Skyfield, Brandon Rhodes, MIT licence: https://rhodesmill.org/skyfield/
-- Archinal et al. (2018), Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015 (IAU WGCCRE 2015)
-- Vite: https://vitejs.dev
-- React: https://react.dev
+- NASA LRO Diviner Polar Resource Product (dlre_prp_south), PDS Geosciences Node
+- Robbins, S. J. (2019), A New Global Database of Lunar Impact Craters >1–2 km, JGR Planets, doi:10.1029/2018JE005592 (USGS Astrogeology)
+- USGS Gazetteer of Planetary Nomenclature
+- NASA NTRS 20240009596 (Artemis HLS update, 2024) and NTRS 20250009323 (Artemis HLS overview for Space Apps 2025)
+- Archinal, B. A. et al. (2018), Report of the IAU WGCCRE: 2015
+- astronomy-engine (Don Cross, MIT): https://github.com/cosinekitty/astronomy · Skyfield (Brandon Rhodes, MIT): https://rhodesmill.org/skyfield/ · React: https://react.dev · Vite: https://vitejs.dev
 
 ## Use of AI (Super Intelligence)
-- **Claude (Anthropic):** used by the team for planning, reading the submission guides, coordinating work between teammates, drafting documentation and the demo script, writing/reviewing code (calculation engine, terrain pipeline, UI), testing, and an independent cross-check of the engine. _Add specifics as we go._
-- AI-generated images/videos must carry a visible watermark; AI-generated code/data must be labelled in text or metadata. No NASA logos or branding in generated content.
+- **Claude (Anthropic):** used throughout as a tool to move faster; the idea, product decisions and final judgement were the team's. Three Claude assistants coordinated through a shared Google Drive folder (project manager, builder, tester/validator). Claude wrote and reviewed most of the code under our direction, helped build an independent re-implementation and the JPL Horizons comparison, and drafted documentation and the demo script, which we edited. Commits credit Claude.
+- No AI-generated images, video or audio are used. No NASA logos or branding.
 
 ## Results with real terrain (smooth Moon → LOLA terrain)
 | Site | Sunlit, next 30 days | Sunlit over a year | Earth in view over a year | Slope | Nearest ice trap |
@@ -69,7 +76,7 @@ _At least one NASA data source is required for Global Awards._
 | Malapert Massif | 62% → 52% | 52% → 43% | 69% → 100% | 6.7° | 12.2 km |
 | IM-2 / Mons Mouton | 59% → 52% | 52% → 47% | 73% → 82% | 2.4° | 9.7 km |
 
-30-day window from 2026-11-14 21:00 UTC. Malapert point = feature centre, not a chosen landing spot.
+30-day window from 2026-11-14 21:00 UTC, observer 2 m (pre-audit run). Malapert point = feature centre, not a chosen landing spot.
 
 ## Validation log
 | Check | Result |
@@ -78,9 +85,10 @@ _At least one NASA data source is required for Global Awards._
 | Independent re-implementation (separate code, same method) | Sun +1.509° / 117.478°, Earth −3.742° / 357.728°: agrees to 0.006° |
 | **JPL Horizons** vs our engine, 89.9°S 0°E, 2026-11-14 18:00 UTC | Horizons: Sun az 117.48°, el +1.51°; Earth az 357.73°, el −3.74°. Ours: 117.484° / +1.509°; 357.728° / −3.742°. Agreement ≈ 0.01° |
 | JPL DE421 tables vs live engine, 8 sites, every 6 h for 26 months | max 0.013° on the sky; RMS ≈ 0.003° in altitude |
+| Terrain model vs NASA PGDA 18.6-year average sunlight, 11 polar sites | within 3 percentage points at 9 of 11; the 2 exceptions sit on crater edges where NASA's map jumps from 0 % to 63–90 % within 180 m |
+| 99.7 % landing ellipse half-axis | 3.41σ independently verified (Rayleigh: k = √(−2 ln 0.003) = 3.409; 3σ contains only 98.89 %) |
 | Earth altitude at pole vs astronomy-engine Libration() | −3.842° vs −3.617°; 0.225° gap ≈ expected topocentric parallax |
 | JS engine vs Python terrain pipeline, Connecting ridge, 30 days | 67.9% vs 68.1% sunlit; 31.7% vs 31.7% Earth in view |
-| Malapert Massif Earth visibility with terrain | 100% over a year, consistent with its study as a communications site |
 | JPL Horizons, full table (4+ sites × 3 times, terrain off) | _in progress_ |
 
 ## Submission Checklist
@@ -89,7 +97,7 @@ _At least one NASA data source is required for Global Awards._
 - [ ] Demo ≤ 30 s (subtitled) or ≤ 7 slides
 - [ ] All links public and tested in a private browser (repo is public ✓)
 - [ ] NASA data described; all other sources cited
-- [ ] AI use disclosed and watermarked
+- [ ] AI use disclosed
 - [ ] No personal info or anyone under 18 in the project
 - [ ] Terms + originality boxes checked
-- [ ] **Submit for Judging** clicked before 11:59 p.m. Sunday
+- [ ] **Submit for Judging** clicked (target 12 PM Sunday, hard deadline 11:59 PM)
