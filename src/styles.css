@@ -483,3 +483,32 @@ input[type="range"] { accent-color: var(--accent); }
 .panel.constraints { padding: 0; }
 .metric-label { display: flex; align-items: flex-start; gap: 2px; }
 .metric-label .tip { flex: none; margin-top: 1px; }
+
+/* ---- Role views ---- */
+.step { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--nasa-blue); color: #fff; font-size: 12px; font-weight: 700; margin-right: 8px; letter-spacing: 0; }
+.linkish { background: none; border: 0; padding: 2px 0; color: var(--earth); text-decoration: underline; font-size: 13px; align-self: flex-start; }
+.rolebar { margin: 0 0 14px; }
+.rolebar-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.rolebar-label { font-family: var(--font-head); font-weight: 600; font-size: 15px; }
+.role-seg button { font-size: 14px; padding: 9px 14px; min-height: 44px; }
+.role-seg button.on { background: var(--nasa-blue); color: #fff; }
+.rolebar-desc { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.verdict { padding: 18px 18px; }
+.verdict-badge { font-size: 34px; min-width: 190px; display: inline-flex; align-items: center; gap: 8px; justify-content: center; }
+.verdict-head { font-size: 18px; }
+.rsec { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+.rsec-title { margin: 0; font-size: 16px; text-transform: none; letter-spacing: 0; }
+.sec-desc { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
+.where-head .sec-desc { margin: 0; }
+.role-line { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; font-size: 15px; }
+.role-line .vicon { width: 18px; height: 18px; flex: none; margin-top: 2px; }
+.role-line.ok .vicon { color: var(--go); } .role-line.bad .vicon { color: var(--nogo); }
+.role-input { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; max-width: 420px; }
+.role-input label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.role-input label.check { color: var(--txt); font-weight: 400; display: flex; gap: 8px; align-items: center; }
+.role-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+details.more { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+details.more > summary { cursor: pointer; font-weight: 600; color: var(--earth); list-style: none; }
+details.more > summary::before { content: '▸ '; } details.more[open] > summary::before { content: '▾ '; }
+button.primary { background: var(--nasa-blue); border-color: var(--nasa-blue); color: #fff; font-weight: 600; padding: 10px 16px; min-height: 44px; }
+@media (max-width: 700px) { .verdict-badge { font-size: 26px; min-width: 0; } .role-seg { flex-wrap: wrap; } }
