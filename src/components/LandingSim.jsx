@@ -80,64 +80,115 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
   };
 
   const s = res && res.summary;
+  const accLabel = acc === 'custom' ? `Custom ellipse ${ell.semiMajorM} × ${ell.semiMinorM} m` : ACCURACY[acc].label;
+  const slopeLabel = String(slopeMode) === 'ldsm' ? 'NASA LDSM slope map (80 m)' : slopeMode === 'nasa5m' ? 'Lander footprint, NASA 5 m map + uncertainty' : `${slopeMode} m baseline, NASA 5 m map where mapped, else 80 m`;
   return (
-    <section className="panel sim">
-      <h2>Landing ellipse simulation <span className="muted small">1,000 simulated touchdowns, each checked on real NASA terrain</span></h2>
-      <div className="sim-tabs" role="tablist">
-        <button role="tab" aria-selected={mode === 'check'} className={mode === 'check' ? 'on' : ''} onClick={() => setMode('check')}>Check this spot</button>
-        <button role="tab" aria-selected={mode === 'find'} className={mode === 'find' ? 'on' : ''} onClick={() => setMode('find')}>Find me a spot nearby</button>
+    <section className="sim sim2">
+      <div className="sec-head sim2-head">
+        <div>
+          <h2>Landing ellipse</h2>
+          <p className="sub">Where could the lander actually touch down? We scatter 1,000 touchdowns over the landing area and check slope, permanent shadow, sunlight and Earth view at every one, on real NASA terrain.</p>
+        </div>
+        <div className="sim-tabs" role="tablist" aria-label="Landing ellipse mode">
+          <button role="tab" aria-selected={mode === 'check'} className={mode === 'check' ? 'on' : ''} onClick={() => setMode('check')}>Check this site</button>
+          <button role="tab" aria-selected={mode === 'find'} className={mode === 'find' ? 'on' : ''} onClick={() => setMode('find')}>Find a better spot nearby</button>
+        </div>
       </div>
-      <p className="hint">Where will the lander actually touch down? We scatter 1,000 touchdowns over the landing ellipse (99.7 % of them inside it)
-        and check every one: NASA slope at that spot, NASA permanent shadow, and sunlight and Earth contact for this mission from that spot's own terrain horizon.</p>
-      <div className="sim-controls">
-        <div className="field"><label htmlFor="preset">Requirements</label>
-          <select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
-            {Object.entries(PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select><small className="field-help">Published lander limits to start from; you can change any value</small></div>
-        <div className="field"><label htmlFor="acc">Landing accuracy (99.7 %)</label>
-          <select id="acc" value={acc} onChange={(e) => pickAcc(e.target.value)}>
-            {Object.entries(ACCURACY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select><small className="field-help">Radius that holds 99.7 % of touchdowns. Artemis III: within 100 m</small></div>
-        <div className="field"><label htmlFor="sma">Ellipse half-length (m)</label>
-          <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /><small className="field-help">Metres, 1–20,000. E.g. 100</small></div>
-        <div className="field"><label htmlFor="smi">Ellipse half-width (m)</label>
-          <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /><small className="field-help">Metres, 1–20,000. E.g. 100 (same as length = circle)</small></div>
-        <div className="field"><label htmlFor="saz">Long axis points (° from north)</label>
-          <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /><small className="field-help">Degrees, 0–180, clockwise from north. E.g. 0</small></div>
-        <div className="field"><label htmlFor="slp">Max slope (°)</label>
-          <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /><small className="field-help">Steepest ground the lander can stand on, 1–45°. E.g. 10</small></div>
-        <div className="field"><label htmlFor="slb">Slope measured over</label>
-          <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
-            <option value="100">100 m baseline (NASA 5 m elevation where mapped, else 80 m)</option>
-            <option value="nasa5m">Lander footprint: NASA 5 m site map + NASA uncertainty</option>
-            <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
-          </select><small className="field-help">Longer distance = smoother slope. NASA 5 m map is the most detailed</small></div>
-        <div className="field"><label htmlFor="pnl">Solar arrays / antenna height</label>
-          <select id="pnl" value={panelKey} onChange={(e) => setPanelKey(e.target.value)}>
-            {Object.entries(PANEL_HEIGHTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-          </select>
-          {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom height in metres" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
-        <small className="field-help">Metres above ground: higher sees over nearby hills</small></div>
-        <div className="field"><label htmlFor="tmin">Thermal: lowest avg temp (K, optional)</label>
-          <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /><small className="field-help">Kelvin, optional, 0–400. E.g. 100. Blank = no limit</small></div>
-        <div className="field"><label htmlFor="tmax">Thermal: highest max temp (K, optional)</label>
-          <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /><small className="field-help">Kelvin, optional, 0–500. E.g. 390. Blank = no limit</small></div>
-        {mode === 'check' && <div className="field sim-go">
-          {run ? <button onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
-               : <button className="primary" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
-        </div>}
+      <div className="sim2-cols">
+        <div className="sim2-form panel">
+          <div className="sec-head"><h3>1 · Start from a lander</h3><p className="sub">Published limits fill the fields below. You can change any of them.</p></div>
+          <div className="f"><label htmlFor="preset">Requirements</label>
+            <select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
+              {Object.entries(PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            {P.source && <p className="f-help">Source: <a href={P.source.url} target="_blank" rel="noreferrer">{P.source.title}</a></p>}
+          </div>
+
+          <div className="sec-head sim2-step"><h3>2 · The choices that matter most</h3></div>
+          <div className="f" role="group" aria-labelledby="acc-l"><span id="acc-l" className="f-label">Landing accuracy <span className="muted">(radius holding 99.7% of touchdowns)</span></span>
+            <div className="seg2">
+              {[['strict50', '50 m'], ['r100', '100 m'], ['custom', 'Custom']].map(([k, t]) => (
+                <button key={k} type="button" aria-pressed={acc === k} className={acc === k ? 'on' : ''} onClick={() => pickAcc(k)}>{t}</button>))}
+            </div>
+            <p className="f-help">{acc === 'custom' ? 'Set the half-length and half-width under Ellipse shape.' : ACCURACY[acc].label}</p></div>
+          <div className="sim2-stack">
+            <div className="f"><label htmlFor="slp">Max slope <span className="muted">(°, 1–45)</span></label>
+              <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /></div>
+            <div className="f"><label htmlFor="pnl">Array height</label>
+              <select id="pnl" value={panelKey} onChange={(e) => setPanelKey(e.target.value)}>
+                {Object.entries(PANEL_HEIGHTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+              {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom array height in metres (0–50)" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
+            </div>
+          </div>
+          <p className="f-help">Higher solar arrays and antennas see over nearby hills.</p>
+
+          <div className="sim2-folds">
+            <details>
+              <summary><span>Ellipse shape</span><span className="muted">{accLabel} · axis {ell.azimuthDeg}°</span></summary>
+              <div className="sim2-grid3">
+                <div className="f"><label htmlFor="sma">Half-length (m)</label>
+                  <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /></div>
+                <div className="f"><label htmlFor="smi">Half-width (m)</label>
+                  <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /></div>
+                <div className="f"><label htmlFor="saz">Long axis (° from N)</label>
+                  <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /></div>
+              </div>
+              <p className="f-help">Metres, 1–20,000. Same length and width = a circle. Axis 0–180°, clockwise from north.</p>
+            </details>
+            <details>
+              <summary><span>How slope is measured</span><span className="muted">{slopeLabel}</span></summary>
+              <div className="f"><label htmlFor="slb">Slope measured over</label>
+                <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
+                  <option value="100">100 m baseline (NASA 5 m elevation where mapped, else 80 m)</option>
+                  <option value="nasa5m">Lander footprint: NASA 5 m site map + NASA uncertainty</option>
+                  <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
+                </select>
+                <p className="f-help">Longer distance = smoother slope. The NASA 5 m map is the most detailed.</p></div>
+            </details>
+            <details>
+              <summary><span>Temperature limits</span><span className="muted">{tMin === '' && tMax === '' ? 'None set · report only' : `min ${tMin || '–'} K · max ${tMax || '–'} K`}</span></summary>
+              <p className="f-help">NASA publishes no pass/fail temperature limit for landing sites, so temperatures are reported only. If your hardware has limits, enter them: a touchdown fails if the LRO Diviner annual-average temperature (2 cm depth) is below your minimum or the yearly maximum is above your maximum.</p>
+              <div className="sim2-pair">
+                <div className="f"><label htmlFor="tmin">Lowest average (K, 0–400)</label>
+                  <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /></div>
+                <div className="f"><label htmlFor="tmax">Highest maximum (K, 0–500)</label>
+                  <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /></div>
+              </div>
+            </details>
+            {P.notes.length > 0 && <details>
+              <summary><span>What this preset sets</span><span className="muted">{P.notes.length} notes</span></summary>
+              <ul className="sim-notes small">{P.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+            </details>}
+          </div>
+          {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
+          {mode === 'check' && <div className="sim-go">
+            {run ? <button className="sim2-run" onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
+                 : <button className="primary sim2-run" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
+          </div>}
+        </div>
+
+        <div className="sim2-out">
+          {mode === 'find' && <div className="panel"><FindSpot site={site} landing={landing} opts={opts} ell={ell} preset={P} onPickPoint={onPickPoint} /></div>}
+          {mode === 'check' && run && <div className="sim-progress" role="progressbar" aria-valuenow={run.done} aria-valuemax={run.total}>
+            <div style={{ width: `${(100 * run.done) / run.total}%` }} />
+            <span>{run.done} / {run.total} touchdowns · {((performance.now() - run.t0) / 1000).toFixed(0)} s</span></div>}
+          {mode === 'check' && err && <p className="error">Simulation failed: {err}</p>}
+          {mode === 'check' && s && <div className="panel"><SimResult res={res} /></div>}
+          {mode === 'check' && !s && !run && (
+            <div className="sim2-empty">
+              <h3>Not run yet for this site and date</h3>
+              <p className="sub">When it finishes you will see:</p>
+              <ul>
+                <li>The share of touchdowns that are safe and meet every requirement, with its 95% confidence range</li>
+                <li>Why touchdowns fail: slope, permanent shadow, power, comms</li>
+                <li>A map of every touchdown, pass or fail</li>
+              </ul>
+            </div>
+          )}
+          <Assumptions opts={opts} ell={ell} acc={acc} panelKey={panelKey} panelM={panelM} appOpts={appOpts} preset={P} />
+        </div>
       </div>
-      <p className="hint small">Thermal: NASA has published no pass/fail temperature limit for landing sites, so by default temperatures are reported only. If your hardware has limits, enter them: a touchdown fails if the LRO Diviner annual-average temperature (2 cm depth) is below your minimum or the annual-maximum surface temperature is above your maximum.</p>
-      {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
-      {P.notes.length > 0 && <ul className="sim-notes small">{P.notes.map((n) => <li key={n}>{n}</li>)}
-        {P.source && <li>Source: <a href={P.source.url} target="_blank" rel="noreferrer">{P.source.title}</a></li>}</ul>}
-      <Assumptions opts={opts} ell={ell} acc={acc} panelKey={panelKey} panelM={panelM} appOpts={appOpts} preset={P} />
-      {mode === 'find' && <FindSpot site={site} landing={landing} opts={opts} ell={ell} preset={P} onPickPoint={onPickPoint} />}
-      {mode === 'check' && run && <div className="sim-progress" role="progressbar" aria-valuenow={run.done} aria-valuemax={run.total}>
-        <div style={{ width: `${(100 * run.done) / run.total}%` }} />
-        <span>{run.done} / {run.total} touchdowns · {((performance.now() - run.t0) / 1000).toFixed(0)} s</span></div>}
-      {mode === 'check' && err && <p className="error">Simulation failed: {err}</p>}
-      {mode === 'check' && s && <SimResult res={res} />}
     </section>
   );
 }

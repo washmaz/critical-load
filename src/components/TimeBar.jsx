@@ -26,7 +26,7 @@ export default function TimeBar({ t0, t1, value, onChange, site }) {
       <button className="tb-btn" onClick={() => setSpeed((k) => (k + 1) % SPEEDS.length)} title="Playback speed">{SPEEDS[speed].k}</button>
       <input type="range" min={t0} max={t1} step={HOUR} value={v} onChange={(e) => { setPlaying(false); onChange(+e.target.value); }} aria-label="Time in mission" />
       <span className="tb-time"><b>{fmtShortUTC(v)}</b> UTC</span>
-      <span className="tb-site muted">{site.name}</span>
+      {site && <span className="tb-site muted">{site.name}</span>}
     </div>
   );
 }

@@ -46,39 +46,72 @@ function TeamReview({ sites, landing, marginDeg, stayDays, onLoad }) {
     setSt(null);
   };
 
+  const [cur, setCur] = useState('mission');
+  const summary = (t) => {
+    const x = inp[t];
+    if (t === 'mission') return `Stay ${x.stayDays ?? '–'} d · slip ±${x.slipDays ?? '–'} d · ${x.poleWithinDeg == null ? 'any distance from pole' : `within ${x.poleWithinDeg}° of pole`}`;
+    if (t === 'power') return `Battery ${x.batteryHours ?? '–'} h · arrays ${x.panelHeightM ?? '–'} m`;
+    if (t === 'comms') return `Gap ${x.commsGapHours ?? '–'} h · ${x.relay ? 'relay' : 'no relay'}`;
+    if (t === 'landing') return `Slope ${x.slopeMaxDeg ?? '–'}° · radius ${x.radiusM ?? '–'} m`;
+    if (t === 'thermal') return x.minAvgK == null && x.maxSurfaceK == null ? 'No limits set · pass/fail only' : `min ${x.minAvgK ?? '–'} K · max ${x.maxSurfaceK ?? '–'} K`;
+    return TEAMS[t].criterion;
+  };
+  const meta = TEAMS[cur];
+  const nCustom = (inp.custom || []).length;
+
   return (
-    <section className="panel team">
-      <h2>Team review <span className="muted small">each team sets its own limits and weight; the site combines them</span></h2>
-      <p className="hint">This mirrors a site-selection review: every team owns its requirements (hard limits a site must pass) and says how much its criterion matters (weight 0–5).
-        Sites are checked at the target point for your landing date, ranked, and the clashes between teams are shown. A sensitivity sweep then tests whether the winner survives reasonable changes to the inputs.
-        The default weights are our team's starting point, not NASA's (NASA sets hard requirements, not trade weights): change them to match your own priorities.</p>
-      <div className="team-grid">
-        {Object.entries(TEAMS).map(([t, meta]) => (
-          <fieldset key={t} className="team-box">
-            <legend>{meta.label}</legend>
-            {FIELDS[t].map(([k, label]) => (
-              <div key={k} className="team-item">
-                <label className="team-field">{label}
-                  {k === 'relay'
-                    ? <input type="checkbox" checked={inp[t][k]} onChange={(e) => set(t, k, e.target.checked)} />
-                    : <input type={k === 'slopeBaselineM' ? 'text' : 'number'} value={inp[t][k] ?? ''} placeholder="none"
-                        onChange={(e) => set(t, k, k === 'slopeBaselineM' ? (e.target.value === 'ldsm' ? 'ldsm' : num(e.target.value) ?? 100) : num(e.target.value))} />}
-                </label>
-                {HELP[k] && <small className="field-help">{HELP[k]}</small>}
-              </div>
-            ))}
-            {t !== 'thermal' && <div className="team-item"><label className="team-field">Weight (0–5)
-              <input type="number" min="0" max="5" value={inp[t].weight} onChange={(e) => set(t, 'weight', Math.max(0, Math.min(5, +e.target.value)))} /></label>
-              <small className="field-help">{HELP.weight}</small></div>}
-            <p className="muted small">{meta.criterion}</p>
-          </fieldset>
-        ))}
+    <section className="team team2">
+      <div className="sec-head">
+        <h2>Team review</h2>
+        <p className="sub">Each team sets its own hard limits and how much it counts (0–5). We check {sites.length} south-pole sites for your landing date, rank them, show where teams disagree, and test whether the winner survives changes.
+          {' '}Default weights are our team's starting point, not NASA's: NASA sets hard requirements, not trade weights.</p>
       </div>
-      <CustomCriteria inp={inp} setInp={setInp} sites={sites} />
-      <button className="primary" onClick={run} disabled={!!st}>Run team review ({sites.length} sites)</button>
-      {st && <p className="hint">{st}</p>}
-      {err && <p className="error">{err}</p>}
-      {res && <TeamResult res={res} onLoad={onLoad} />}
+      <div className="team2-cols">
+        <nav className="team2-list" aria-label="Teams">
+          {Object.entries(TEAMS).map(([t, m]) => (
+            <button key={t} className={cur === t ? 'on' : ''} aria-current={cur === t ? 'true' : undefined} onClick={() => setCur(t)}>
+              <span className="t2-name">{m.label}<span className="t2-sum">{summary(t)}</span></span>
+              <span className="t2-w mono">{t === 'thermal' ? '—' : `w ${inp[t].weight}`}</span>
+            </button>
+          ))}
+          <button className={cur === 'custom' ? 'on' : ''} aria-current={cur === 'custom' ? 'true' : undefined} onClick={() => setCur('custom')}>
+            <span className="t2-name">Custom criteria<span className="t2-sum">{nCustom ? `${nCustom} added` : 'For anything without a NASA dataset'}</span></span>
+            <span className="t2-w mono">{nCustom || '+'}</span>
+          </button>
+        </nav>
+        <div className="team2-edit panel">
+          {cur === 'custom' ? <CustomCriteria inp={inp} setInp={setInp} sites={sites} /> : (
+            <fieldset className="team2-box">
+              <legend>{meta.label}</legend>
+              <p className="sub">Ranked on: {meta.criterion.charAt(0).toLowerCase() + meta.criterion.slice(1)}.</p>
+              {FIELDS[cur].map(([k, label]) => (
+                <div key={k} className="team2-field">
+                  {k === 'relay'
+                    ? <label className="check"><input type="checkbox" checked={inp[cur][k]} onChange={(e) => set(cur, k, e.target.checked)} />{label}</label>
+                    : <><label htmlFor={`team-${cur}-${k}`}>{label}</label>
+                      <input id={`team-${cur}-${k}`} type={k === 'slopeBaselineM' ? 'text' : 'number'} value={inp[cur][k] ?? ''} placeholder="none"
+                        onChange={(e) => set(cur, k, k === 'slopeBaselineM' ? (e.target.value === 'ldsm' ? 'ldsm' : num(e.target.value) ?? 100) : num(e.target.value))} /></>}
+                  {HELP[k] && <small className="f-help">{HELP[k]}</small>}
+                </div>
+              ))}
+              {cur !== 'thermal'
+                ? <div className="team2-weight">
+                    <label htmlFor={`team-${cur}-w`}>How much this team counts <span className="mono">{inp[cur].weight} / 5</span></label>
+                    <input id={`team-${cur}-w`} type="range" min="0" max="5" step="1" value={inp[cur].weight} onChange={(e) => set(cur, 'weight', +e.target.value)} />
+                    <div className="t2-scale"><span>0 · ignore</span><span>5 · most</span></div>
+                  </div>
+                : <p className="f-help">Pass or fail only, no ranking weight: NASA publishes no temperature limit for landing sites.</p>}
+            </fieldset>
+          )}
+        </div>
+      </div>
+      <div className="team2-run">
+        <button className="primary" onClick={run} disabled={!!st}>Run team review ({sites.length} sites)</button>
+        {st && <p className="hint">{st}</p>}
+        {err && <p className="error">{err}</p>}
+      </div>
+      {res ? <div className="panel"><TeamResult res={res} onLoad={onLoad} /></div>
+        : !st && <div className="sim2-empty"><h3>Not run yet</h3><p className="sub">You will get a ranked list, each site's result per team, the clashes between teams, and whether the winner survives limits ×0.75 / ×1.25 and weights ×0.5 / ×1.5.</p></div>}
     </section>
   );
 }
@@ -88,7 +121,7 @@ function CustomCriteria({ inp, setInp, sites }) {
   const put = (id, patch) => setInp({ ...inp, custom: list.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
   const setVal = (c, siteId, v) => put(c.id, { values: { ...c.values, [siteId]: v } });
   return (
-    <fieldset className="team-box custom-criteria">
+    <fieldset className="team2-box custom-criteria">
       <legend>Custom criteria</legend>
       <p className="muted small">For anything a team needs judged that the app has no NASA dataset for (for example a traverse to a science target).
         Name it, rate each site, set a weight. <strong>Score</strong> criteria (0–100) enter the weighted ranking; <strong>pass/fail</strong> criteria act as a hard limit.
