@@ -89,10 +89,15 @@ export function wilson(k, n, z = 1.96) {
   return [Math.max(0, (c - h) / d), Math.min(1, (c + h) / d)];
 }
 
-/** Combine per-touchdown results with the NASA permanent-shadow flags (psr[i] true/false). */
-export function summarize(results, psr) {
+/**
+ * Combine per-touchdown results with the NASA permanent-shadow flags (psr[i] true/false) and, if the planner set
+ * thermal limits, Diviner temperatures (thermal[i] = { tempAvgK, tempMaxK }; limits = { minAvgK, maxSurfaceK }).
+ */
+export function summarize(results, psr, thermal = null, limits = null) {
   const ok = results.filter((r) => !r.noData);
-  const fails = { slope: 0, shadow: 0, power: 0, comms: 0 };
+  const fails = { slope: 0, shadow: 0, power: 0, comms: 0, thermal: 0 };
+  const useT = !!(thermal && limits && (limits.minAvgK != null || limits.maxSurfaceK != null));
+  let thermalNoData = 0;
   let safe = 0;
   for (const r of ok) {
     const sh = !!psr[r.i];
@@ -101,7 +106,15 @@ export function summarize(results, psr) {
     if (sh) fails.shadow++;
     if (!r.powerOK) fails.power++;
     if (!r.commsOK) fails.comms++;
-    r.safe = r.slopeOK && !sh && r.powerOK && r.commsOK;
+    let thOK = true;
+    if (useT) {
+      const t = thermal[r.i] || {};
+      if (t.tempAvgK == null || t.tempMaxK == null) thermalNoData++;
+      else thOK = !((limits.minAvgK != null && t.tempAvgK < limits.minAvgK) || (limits.maxSurfaceK != null && t.tempMaxK > limits.maxSurfaceK));
+      if (!thOK) fails.thermal++;
+    }
+    r.thermalOK = thOK;
+    r.safe = r.slopeOK && !sh && r.powerOK && r.commsOK && thOK;
     if (r.safe) safe++;
   }
   const n = ok.length, [lo, hi] = wilson(safe, n);
@@ -109,7 +122,7 @@ export function summarize(results, psr) {
   const earthAtLandingPct = n ? (100 * ok.filter((r) => r.earthAtLanding).length) / n : 0;
   const q = (arr, p) => { const a = [...arr].sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))] : null; };
   return {
-    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails, litAtLandingPct, earthAtLandingPct,
+    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails, litAtLandingPct, earthAtLandingPct, thermalChecked: useT, thermalNoData,
     sunlitPct: { p5: q(ok.map((r) => r.sunlitPct), 0.05), median: q(ok.map((r) => r.sunlitPct), 0.5), p95: q(ok.map((r) => r.sunlitPct), 0.95) },
     earthPct: { p5: q(ok.map((r) => r.earthPct), 0.05), median: q(ok.map((r) => r.earthPct), 0.5), p95: q(ok.map((r) => r.earthPct), 0.95) },
     longestDarkH: { median: q(ok.map((r) => r.longestDarkH), 0.5), p95: q(ok.map((r) => r.longestDarkH), 0.95) },

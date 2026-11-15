@@ -1,0 +1,301 @@
+{
+ "landing": "2026-11-14T21:00:00.000Z",
+ "steps": [
+  "1 h",
+  "10 min"
+ ],
+ "partA": [
+  {
+   "id": "shackleton-rim",
+   "verdict": [
+    "CAUTION",
+    "CAUTION"
+   ],
+   "sunlitPct": [
+    100,
+    100
+   ],
+   "longestDarkH": [
+    0,
+    0
+   ],
+   "earthPct": [
+    78.7911379315008,
+    78.79117466709602
+   ],
+   "longestCommsGapH": [
+    71.26177655015734,
+    71.2616531185574
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "connecting-ridge",
+   "verdict": [
+    "NO-GO",
+    "NO-GO"
+   ],
+   "sunlitPct": [
+    27.90206822109727,
+    27.89185892744922
+   ],
+   "longestDarkH": [
+    242.24905077711318,
+    242.28335400377063
+   ],
+   "earthPct": [
+    63.58623213490481,
+    63.58641204014531
+   ],
+   "longestCommsGapH": [
+    93.93281636108398,
+    93.93272282362196
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "malapert-massif",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    86.48921240472541,
+    86.48916413358658
+   ],
+   "longestDarkH": [
+    45.396246320122614,
+    45.39640851114909
+   ],
+   "earthPct": [
+    100,
+    100
+   ],
+   "longestCommsGapH": [
+    0,
+    0
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "im2-mons-mouton",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    94.01810230771827,
+    94.01330425323002
+   ],
+   "longestDarkH": [
+    20.099176246066623,
+    20.115297709147136
+   ],
+   "earthPct": [
+    100,
+    100
+   ],
+   "longestCommsGapH": [
+    0,
+    0
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "nobile-rim-1",
+   "verdict": [
+    "CAUTION",
+    "CAUTION"
+   ],
+   "sunlitPct": [
+    100,
+    100
+   ],
+   "longestDarkH": [
+    0,
+    0
+   ],
+   "earthPct": [
+    84.20969742949552,
+    84.2096866650657
+   ],
+   "longestCommsGapH": [
+    53.055416636895075,
+    53.05545280537923
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "nobile-rim-2",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    87.9731934439644,
+    87.96726294593205
+   ],
+   "longestDarkH": [
+    40.41007002827962,
+    40.42999650166829
+   ],
+   "earthPct": [
+    100,
+    100
+   ],
+   "longestCommsGapH": [
+    0,
+    0
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "haworth",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    89.63402480077995,
+    89.63225248550738
+   ],
+   "longestDarkH": [
+    34.82967666937934,
+    34.835631648695205
+   ],
+   "earthPct": [
+    97.56141859230162,
+    97.56131803752758
+   ],
+   "longestCommsGapH": [
+    8.193633529866537,
+    8.193971393907335
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "de-gerlache-rim-2",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    91.98248462864709,
+    91.98173364166986
+   ],
+   "longestDarkH": [
+    26.938851647745768,
+    26.941374963989258
+   ],
+   "earthPct": [
+    87.05926378165351,
+    87.05926533837294
+   ],
+   "longestCommsGapH": [
+    43.480873693644206,
+    43.48086846306695
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "peak-near-cabeus-b",
+   "verdict": [
+    "NO-GO",
+    "NO-GO"
+   ],
+   "sunlitPct": [
+    63.66439064536524,
+    63.66483561379569
+   ],
+   "longestDarkH": [
+    122.0876474315728,
+    122.08615233764648
+   ],
+   "earthPct": [
+    100,
+    100
+   ],
+   "longestCommsGapH": [
+    0,
+    0
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "slater-plain",
+   "verdict": [
+    "CAUTION",
+    "CAUTION"
+   ],
+   "sunlitPct": [
+    100,
+    100
+   ],
+   "longestDarkH": [
+    0,
+    0
+   ],
+   "earthPct": [
+    82.3260879871429,
+    82.32603838840868
+   ],
+   "longestCommsGapH": [
+    59.38434436319987,
+    59.38451101494683
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  },
+  {
+   "id": "mons-mouton-plateau",
+   "verdict": [
+    "GO",
+    "GO"
+   ],
+   "sunlitPct": [
+    100,
+    100
+   ],
+   "longestDarkH": [
+    0,
+    0
+   ],
+   "earthPct": [
+    92.73329524537748,
+    92.73317754148049
+   ],
+   "longestCommsGapH": [
+    24.416127975531683,
+    24.41652346062554
+   ],
+   "slipDatesCompared": 113,
+   "slipVerdictsDifferent": 0
+  }
+ ],
+ "partB": [
+  {
+   "id": "connecting-ridge",
+   "touchdowns": 200,
+   "powerVerdictDifferent": 0,
+   "commsVerdictDifferent": 0,
+   "maxLongestDarkDiffH": 0.039996325141061106
+  },
+  {
+   "id": "shackleton-rim",
+   "touchdowns": 200,
+   "powerVerdictDifferent": 0,
+   "commsVerdictDifferent": 0,
+   "maxLongestDarkDiffH": 0.27025698167588974
+  }
+ ],
+ "done": true
+}

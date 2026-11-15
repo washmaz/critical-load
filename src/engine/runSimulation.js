@@ -39,7 +39,7 @@ export async function runLandingSimulation({ target, ellipse, landingMs, opts, n
       wk.postMessage({ id: w, center: target, radiusM, touchdowns: share, bodies, opts });
     }
   });
-  const summary = summarize(results, psr);
+  const summary = summarize(results, psr, facts, opts.thermalLimits || null);
   const num = (a) => a.filter((v) => typeof v === 'number');
   const thermal = {
     tempAvgK: range(num(facts.map((f) => f.tempAvgK))), tempMaxK: range(num(facts.map((f) => f.tempMaxK))),

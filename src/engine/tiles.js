@@ -81,6 +81,20 @@ export async function loadTerrainAround(lat, lon, radiusM = 30000) {
   };
 }
 
+/** Only the 80 m elevation + slope tiles within radiusM (no far field): enough for slope checks. */
+export async function loadNearOnly(lat, lon, radiusM = 2000) {
+  const meta = await loadMeta();
+  const [x, y] = llToXY(lat, lon);
+  const s = meta.terrain, have = new Set(s.tiles.map(([r, c]) => r * 1000 + c));
+  const r0 = Math.max(0, Math.floor((s.y0 - (y + radiusM)) / s.pix / T)), r1 = Math.floor((s.y0 - (y - radiusM)) / s.pix / T);
+  const c0 = Math.max(0, Math.floor((x - radiusM - s.x0) / s.pix / T)), c1 = Math.floor((x + radiusM - s.x0) / s.pix / T);
+  const m = new Map(), jobs = [];
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (have.has(r * 1000 + c))
+    jobs.push(load(`t${r}_${c}`, `terrain/t${r}_${c}.bin`, decTerrain).then((t) => m.set(r * 1000 + c, t)));
+  await Promise.all(jobs);
+  return { near: mosaic(s, r0, r1, c0, c1, m, (t) => t.elev), slope: mosaic(s, r0, r1, c0, c1, m, (t) => t.slope) };
+}
+
 /** Science tiles (120 m) covering a box of half-size radiusM around (lat, lon). Returns plane accessors. */
 export async function loadScienceAround(lat, lon, radiusM = 3000) {
   const meta = await loadMeta();

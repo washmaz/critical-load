@@ -33,6 +33,9 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const [slopeMode, setSlopeMode] = useState(100);
   const [panelKey, setPanelKey] = useState('esa2');
   const [panelCustom, setPanelCustom] = useState(2);
+  const [tMin, setTMin] = useState('');   // optional: lowest acceptable Diviner annual-average temperature (K)
+  const [tMax, setTMax] = useState('');   // optional: highest acceptable Diviner annual-maximum surface temperature (K)
+  const thermalLimits = (tMin !== '' || tMax !== '') ? { minAvgK: tMin === '' ? null : +tMin, maxSurfaceK: tMax === '' ? null : +tMax } : null;
   const panelM = panelKey === 'custom' ? panelCustom : PANEL_HEIGHTS[panelKey].m;
   const pickAcc = (k) => { setAcc(k); if (ACCURACY[k].semiMajorM) setEll({ semiMajorM: ACCURACY[k].semiMajorM, semiMinorM: ACCURACY[k].semiMinorM, azimuthDeg: 0 }); };
   const [run, setRun] = useState(null);       // { done, total, t0 }
@@ -49,11 +52,11 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
   useEffect(() => { setRes(null); setErr(null); }, [site.lat, site.lon, landing]);
 
   const opts = useMemo(() => ({
-    ...appOpts, stepHours: 1, slopeMaxDeg: slopeMax, slopeMode, panelHeightM: panelM,
+    ...appOpts, stepHours: 1, slopeMaxDeg: slopeMax, slopeMode, panelHeightM: panelM, thermalLimits,
     ...(P.batteryHours != null ? { batteryHours: P.batteryHours } : {}),
     ...(P.relay != null ? { relay: P.relay } : {}),
     ...(P.earthMinElevDeg != null ? { earthMinElevDeg: P.earthMinElevDeg } : {}),
-  }), [appOpts, slopeMax, presetId, slopeMode, panelM]);
+  }), [appOpts, slopeMax, presetId, slopeMode, panelM, tMin, tMax]);
 
   const start = async () => {
     setErr(null); setRes(null);
@@ -114,11 +117,16 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
           </select>
           {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom height in metres" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
         </div>
+        <div className="field"><label htmlFor="tmin">Thermal: lowest avg temp (K, optional)</label>
+          <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /></div>
+        <div className="field"><label htmlFor="tmax">Thermal: highest max temp (K, optional)</label>
+          <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /></div>
         {mode === 'check' && <div className="field sim-go">
           {run ? <button onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
                : <button className="primary" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
         </div>}
       </div>
+      <p className="hint small">Thermal: NASA has published no pass/fail temperature limit for landing sites, so by default temperatures are reported only. If your hardware has limits, enter them: a touchdown fails if the LRO Diviner annual-average temperature (2 cm depth) is below your minimum or the annual-maximum surface temperature is above your maximum.</p>
       {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
       {P.notes.length > 0 && <ul className="sim-notes small">{P.notes.map((n) => <li key={n}>{n}</li>)}
         {P.source && <li>Source: <a href={P.source.url} target="_blank" rel="noreferrer">{P.source.title}</a></li>}</ul>}
@@ -140,6 +148,7 @@ export function SimResult({ res }) {
     ['Too steep', f.slope, `slope over ${res.opts.slopeMaxDeg}° (${res.opts.slopeMode === 'ldsm' ? 'NASA LDSM 80 m' : `${res.opts.slopeMode} m baseline, NASA LOLA`})`],
     ['Permanent shadow', f.shadow, 'NASA LPSR: never sunlit'],
     ['Not enough power', f.power, res.opts.batteryHours === 0 ? 'any dark hour during the stay' : `dark longer than ${res.opts.batteryHours} h`],
+    ...(s.thermalChecked ? [['Outside your thermal limits', f.thermal, `Diviner: avg < ${res.opts.thermalLimits.minAvgK ?? '–'} K or max > ${res.opts.thermalLimits.maxSurfaceK ?? '–'} K${s.thermalNoData ? ` (${s.thermalNoData} no data)` : ''}`]] : []),
     ['Comms gap too long', f.comms, res.opts.relay ? 'relay assumed' : `Earth hidden longer than ${res.opts.commsGapHours} h`],
   ];
   return (
@@ -167,7 +176,7 @@ export function SimResult({ res }) {
             <tr><td>Longest dark</td><td>median {fmtH(s.longestDarkH.median)}, worst 5 % {fmtH(s.longestDarkH.p95)}</td></tr>
             <tr><td>Longest comms gap</td><td>median {fmtH(s.longestCommsGapH.median)}, worst 5 % {fmtH(s.longestCommsGapH.p95)}</td></tr>
             <tr><td>Slope ({res.opts.slopeMode === 'ldsm' ? 'NASA LDSM' : `${res.opts.slopeMode} m baseline`})</td><td>median {s.slopeDeg.median.toFixed(1)}°, worst 5 % {s.slopeDeg.p95.toFixed(1)}°</td></tr>
-            {res.thermal.tempAvgK && <tr><td>Ground temperature (Diviner)</td><td>avg {Math.round(res.thermal.tempAvgK.min)}–{Math.round(res.thermal.tempAvgK.max)} K, yearly max up to {Math.round(res.thermal.tempMaxK.max)} K <span className="muted small">(report only)</span></td></tr>}
+            {res.thermal.tempAvgK && <tr><td>Ground temperature (Diviner)</td><td>avg {Math.round(res.thermal.tempAvgK.min)}–{Math.round(res.thermal.tempAvgK.max)} K, yearly max up to {Math.round(res.thermal.tempMaxK.max)} K <span className="muted small">({s.thermalChecked ? 'checked against your limits' : 'report only: no published limit'})</span></td></tr>}
             <tr><td>Sun up at touchdown <span className="muted small">(NASA: approach lighting is beneficial)</span></td><td>{s.litAtLandingPct.toFixed(0)}% of touchdowns · Earth up {s.earthAtLandingPct.toFixed(0)}%</td></tr>
             <tr><td>Water ice within 1 m (Diviner)</td><td>{res.thermal.iceWithin1mPct.toFixed(0)}% of touchdowns</td></tr>
             {res.checks.map((c) => <tr key={c.label}><td>{c.label}</td><td>{c.ok === true ? '✓ ' : c.ok === false ? '✗ ' : ''}{c.value}</td></tr>)}
@@ -340,6 +349,7 @@ function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
     ['Landing accuracy (99.7 % ellipse)', `${ell.semiMajorM} m × ${ell.semiMinorM} m half-axes`, ACCURACY[acc].label, OWNERS.accuracy],
     ['Slope limit', `${opts.slopeMaxDeg}°`, preset.slopeMaxDeg != null ? `Preset: ${preset.label}` : 'Your setting', OWNERS.slope],
     ['Slope measured over', opts.slopeMode === 'ldsm' ? 'NASA LDSM, 80 m pixels' : `${opts.slopeMode} m baseline`, opts.slopeMode === 100 ? 'NASA Artemis III wording ("over 100 m")' : 'NASA map as published', OWNERS.slopeBase],
+    ['Thermal limits', opts.thermalLimits ? `avg ≥ ${opts.thermalLimits.minAvgK ?? '–'} K, max ≤ ${opts.thermalLimits.maxSurfaceK ?? '–'} K` : 'none (report only)', opts.thermalLimits ? 'Your setting' : 'NASA publishes no landing-site limit', 'Thermal engineering'],
     ['Sun / Earth "up" means', `centre more than ${opts.marginDeg}° above the terrain`, 'Your setting (centre rule; ESA\'s 50 %-of-disc rule is the 0° case)', OWNERS.margin],
   ];
   return (

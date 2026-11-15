@@ -4,6 +4,7 @@ import { analyzeSite, compareSites, DEFAULTS } from './engine/analysis.js';
 import { withTerrain, terrainFor } from './engine/terrain.js';
 import { pointFacts, inTileCoverage } from './engine/pointData.js';
 import LandingSim from './components/LandingSim.jsx';
+import TeamReview from './components/TeamReview.jsx';
 import { scienceFor, SCIENCE_SOURCES, loadCraters, cratersNear } from './engine/science.js';
 import { loadTable, getStatus, horizonsUrl } from './engine/ephemerisStore.js';
 import { skyAt, setEphemerisMode } from './engine/lunarSky.js';
@@ -308,6 +309,9 @@ export default function App() {
 
       {covered && <LandingSim site={site} landing={s.landing} appOpts={opts}
         onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
+
+      <TeamReview sites={[...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(isCustom && covered ? [baseSite] : [])]} landing={s.landing} marginDeg={s.marginDeg}
+        onLoad={(x) => { if (x.id === 'custom') return; set({ siteId: x.id }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
 
       <section className="panel">
         <h2>Mission timeline</h2>
