@@ -5,7 +5,7 @@ const COLORS = { GO: '#47da84', CAUTION: 'url(#slipCaution)', 'NO-GO': 'url(#sli
 const W = 1000, H = 64, PAD = 30;
 
 // One coloured bar per candidate landing date across the ± slip window.
-export default function SlipWindow({ analysis, onPick }) {
+function SlipWindow({ analysis, onPick }) {
   const { scan, best, summary, landing, opts } = analysis;
   if (!scan.length) {
     return <p className="muted">Set a slip window above (e.g. ±7 days) to see how robust this landing date is.</p>;
@@ -88,3 +88,5 @@ export default function SlipWindow({ analysis, onPick }) {
     </div>
   );
 }
+
+export default React.memo(SlipWindow);
