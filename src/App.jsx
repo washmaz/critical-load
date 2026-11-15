@@ -61,10 +61,13 @@ const HEADLINE = {
   'NO-GO': 'Not enough sunlight: the lander would run out of battery.',
 };
 
+const STAY_OPTIONS = [7, 14];
+
 export default function App() {
   const [s, setS] = useState(readHash);
   const set = (patch) => setS((old) => ({ ...old, ...patch }));
   const [scrub, setScrub] = useState(null);
+  const [stayCustom, setStayCustom] = useState(() => !STAY_OPTIONS.includes(s.missionDays));
   const [zoomPref, setZoomPref] = useState(null);
   const [customDraft, setCustomDraft] = useState({ lat: String(s.customLat), lon: String(s.customLon) });
   const [customErr, setCustomErr] = useState(null);
@@ -213,10 +216,15 @@ export default function App() {
           <select id="slip" value={s.slipDays} onChange={(e) => set({ slipDays: +e.target.value })}>
             {SLIP_OPTIONS.map((d) => <option key={d} value={d}>{d === 0 ? 'None (exact date)' : `± ${d} days`}</option>)}
           </select>
-          <label htmlFor="mission">Mission length</label>
-          <select id="mission" value={s.missionDays} onChange={(e) => set({ missionDays: +e.target.value })}>
-            {[3, 7, 14, 29.53].map((d) => <option key={d} value={d}>{d === 29.53 ? '1 lunar day cycle (29.5 d)' : `${d} days`}</option>)}
+          <label htmlFor="mission">Surface stay</label>
+          <select id="mission" value={stayCustom ? 'custom' : s.missionDays}
+            onChange={(e) => { if (e.target.value === 'custom') setStayCustom(true); else { setStayCustom(false); set({ missionDays: +e.target.value }); } }}>
+            {STAY_OPTIONS.map((d) => <option key={d} value={d}>{d === 7 ? '7 days (default)' : `${d} days (stricter)`}</option>)}
+            <option value="custom">Custom…</option>
           </select>
+          {stayCustom && <input id="mission-custom" type="number" min="0.5" max="30" step="0.5" value={s.missionDays} aria-label="Custom surface stay in days"
+            onChange={(e) => { const v = +e.target.value; if (v >= 0.5 && v <= 30) set({ missionDays: v }); }} />}
+          <p className="hint small">NASA requires the site to stay lit and in view of Earth for the whole stay, but publishes no stay length for Artemis III. The mission team sets it.</p>
         </div>
       </section>
 
@@ -324,7 +332,7 @@ export default function App() {
       {covered && <LandingSim site={site} landing={s.landing} appOpts={opts}
         onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
 
-      <TeamReview sites={[...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(isCustom && covered ? [baseSite] : [])]} landing={s.landing} marginDeg={s.marginDeg}
+      <TeamReview stayDays={s.missionDays} sites={[...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(isCustom && covered ? [baseSite] : [])]} landing={s.landing} marginDeg={s.marginDeg}
         onLoad={(x) => { if (x.id === 'custom') return; set({ siteId: x.id }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
 
       <section className="panel">

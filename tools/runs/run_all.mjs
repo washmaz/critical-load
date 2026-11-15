@@ -15,7 +15,7 @@ import { SITES } from '../../src/engine/sites.js';
 const [TILES, OUT] = process.argv.slice(2);
 setTileFetcher(async (p) => { const b = readFileSync(TILES + '/' + p); return b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b; });
 const P = PRESETS['nasa-artemis3'];
-const LANDING = Date.parse('2026-11-14T21:00:00Z'), MISSION_D = +(process.env.MISSION_DAYS || 14), N = 1000;
+const LANDING = Date.parse('2026-11-14T21:00:00Z'), MISSION_D = +(process.env.MISSION_DAYS || 7), N = 1000; // surface stay: 7 d default, 14 d stricter (MISSION_DAYS=14)
 import { ACCURACY, PANEL_HEIGHTS } from '../../src/engine/presets.js';
 const opts = { ...DEFAULTS, missionDays: MISSION_D, slipDays: 0, slopeMaxDeg: P.slopeMaxDeg, slopeMode: P.slopeMode, panelHeightM: PANEL_HEIGHTS.esa2.m, batteryHours: P.batteryHours, relay: P.relay };
 const ell = { semiMajorM: ACCURACY[P.accuracy].semiMajorM, semiMinorM: ACCURACY[P.accuracy].semiMinorM, azimuthDeg: 0 };
@@ -35,7 +35,7 @@ async function simulate(lat, lon) {
   return { summary: s, seconds: (Date.now() - t0) / 1000, hiresSites: grids.hires ? grids.hires.sites : [] };
 }
 
-const OUTFILE = OUT + (MISSION_D !== 14 ? '/runs-v3-' + MISSION_D + 'd.json' : '/runs-v3.json');
+const OUTFILE = OUT + '/runs-v3-' + MISSION_D + 'd.json';
 import { existsSync as _ex } from 'node:fs';
 // RESUME: keep finished sites / searches from an earlier, interrupted run
 const out = _ex(OUTFILE) ? JSON.parse(readFileSync(OUTFILE)) : { meta, sites: [], searches: [] };

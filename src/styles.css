@@ -291,4 +291,11 @@ button.small { font-size: 13px; padding: 4px 10px; }
 .team-table td.ok { color: var(--go); } .team-table td.bad { color: var(--nogo); }
 .team-table tr.excluded td:nth-child(2) { color: var(--muted); }
 .team-result { overflow-x: auto; margin-top: 12px; }
+.custom-criteria { margin: 0 0 10px; }
+.criterion { border-top: 1px solid var(--line); padding: 8px 0; }
+.criterion-head { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.criterion-head .team-field input[type="text"] { width: 170px; }
+.criterion-sites { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 16px; margin-top: 4px; }
+@media (max-width: 760px) { .criterion-sites { grid-template-columns: 1fr; } }
+#mission-custom { width: 90px; margin-top: 4px; }
 @media (max-width: 760px) { .team-grid { grid-template-columns: 1fr; } }

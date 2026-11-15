@@ -23,3 +23,29 @@ test('team review ranks the polar sites, lists clashes and runs the sensitivity 
   for (const r of ev.rows) { const d = data.find((x) => x.site.id === r.site.id).metrics; assert.equal(r.teams.power.pass, d.sunlitPct > 0 && d.longestDarkH <= 48); }
   assert.ok(sen.cases.length > 0 && sen.stablePct >= 0 && sen.stablePct <= 100);
 });
+
+test('custom criteria: score enters the weighted ranking, pass/fail acts as a hard limit, unrated is left out', { skip: !have && 'no tiles' }, async () => {
+  const L = Date.parse('2026-11-14T21:00Z');
+  const ids = ['mons-mouton-plateau', 'haworth', 'nobile-rim-2'];
+  const data = [];
+  for (const id of ids) data.push(await siteData(SITES.find((s) => s.id === id), L, DEFAULT_TEAM_INPUTS));
+  const base = evaluate(data, DEFAULT_TEAM_INPUTS);
+  assert.deepEqual(base.unrated, []);
+  // a heavily weighted score criterion that only Haworth gets full marks on must lift Haworth relative to the others
+  const sc = { id: 'x', name: 'Traverse to target', owner: 'Science', kind: 'score', weight: 5, values: { haworth: 100, 'mons-mouton-plateau': 0 } };
+  const ev = evaluate(data, { ...DEFAULT_TEAM_INPUTS, custom: [sc] });
+  const row = (e, id) => e.rows.find((r) => r.site.id === id);
+  assert.ok(row(ev, 'haworth').score > row(base, 'haworth').score);
+  assert.ok(row(ev, 'mons-mouton-plateau').score < row(base, 'mons-mouton-plateau').score);
+  assert.equal(row(ev, 'nobile-rim-2').score, row(base, 'nobile-rim-2').score); // unrated: unchanged
+  assert.deepEqual(ev.unrated, [{ name: 'Traverse to target', sites: [row(ev, 'nobile-rim-2').site.name] }]);
+  assert.equal(ev.labels['custom:x'], 'Traverse to target');
+  // a pass/fail criterion failing a site adds a fail and moves it below the passing sites
+  const pf = { id: 'y', name: 'Range safety', owner: 'Mission', kind: 'pass', weight: 0, values: { 'mons-mouton-plateau': false } };
+  const ev2 = evaluate(data, { ...DEFAULT_TEAM_INPUTS, custom: [pf] });
+  assert.ok(row(ev2, 'mons-mouton-plateau').fails.includes('custom:y'));
+  assert.equal(row(ev2, 'mons-mouton-plateau').score, row(base, 'mons-mouton-plateau').score); // pass/fail never changes the score
+  // the sensitivity sweep includes the custom weight
+  const sen = sensitivity(data, { ...DEFAULT_TEAM_INPUTS, custom: [sc] });
+  assert.ok(sen.cases.some((c) => c.label.startsWith('Traverse to target weight')));
+});

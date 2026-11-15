@@ -18,7 +18,7 @@ const HOUR = 3600e3;
 const DAY = 24 * HOUR;
 
 export const DEFAULTS = {
-  missionDays: 14,     // surface mission length analysed from the landing time
+  missionDays: 7,      // surface stay analysed from the landing time (mission team's input; 7 d default, 14 d stricter option)
   marginDeg: 0.5,      // uncertainty band around the horizon (degrees)
   batteryHours: 48,    // longest dark stretch the lander can survive on batteries
   commsGapHours: 48,   // longest acceptable gap in direct-to-Earth contact

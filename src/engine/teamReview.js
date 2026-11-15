@@ -17,13 +17,41 @@ export const TEAMS = {
 };
 
 export const DEFAULT_TEAM_INPUTS = {
-  mission: { stayDays: 14, slipDays: 7, poleWithinDeg: 6, weight: 2 },
+  mission: { stayDays: 7, slipDays: 7, poleWithinDeg: 6, weight: 2 },
   power: { batteryHours: 48, panelHeightM: 2, weight: 3 },
   comms: { commsGapHours: 48, relay: false, weight: 3 },
   landing: { slopeMaxDeg: 10, slopeBaselineM: 100, radiusM: 50, weight: 4 },
   thermal: { minAvgK: null, maxSurfaceK: null, weight: 0 },
   science: { weight: 1 },
+  custom: [],
 };
+// Default weights are our team's starting point, not NASA's: NASA publishes hard requirements, not trade weights.
+
+/**
+ * Custom criteria: anything a team wants judged that the app has no dataset for (e.g. "traverse to a science target",
+ * "sample diversity"). The team names it, rates each site, and sets a weight. Kind 'score' = 0–100 per site (enters the
+ * weighted score); kind 'pass' = pass/fail per site (a hard limit, like the built-in ones). Unrated sites are left out of
+ * that criterion (no score, no fail) and flagged. These change the ranking and clashes only, never the physics
+ * (sunlight, Earth view, slope, shadow, Monte Carlo), which come from NASA data.
+ */
+export function newCriterion(n = 1) {
+  return { id: `c${Date.now().toString(36)}${n}`, name: `Custom criterion ${n}`, owner: '', kind: 'score', weight: 1, values: {} };
+}
+const allKeys = (inp) => [...Object.keys(TEAMS), ...(inp.custom || []).map((c) => 'custom:' + c.id)];
+export const keyLabel = (k, inp) => (k.startsWith('custom:') ? ((inp.custom || []).find((c) => 'custom:' + c.id === k) || {}).name || 'Custom' : TEAMS[k].label);
+const weightOf = (k, inp) => (k.startsWith('custom:') ? ((inp.custom || []).find((c) => 'custom:' + c.id === k) || {}).weight || 0 : inp[k].weight);
+
+function customResult(c, siteId) {
+  const v = c.values ? c.values[siteId] : undefined;
+  const who = c.owner ? ` (${c.owner})` : '';
+  if (c.kind === 'pass') {
+    if (v == null || v === '') return { pass: true, score: null, unrated: true, why: `not rated${who}` };
+    return { pass: !!v, score: null, why: `${v ? 'pass' : 'fail'}${who}` };
+  }
+  const x = v == null || v === '' ? NaN : +v;
+  if (!(x >= 0 && x <= 100)) return { pass: true, score: null, unrated: true, why: `not rated${who}` };
+  return { pass: true, score: x / 100, why: `rated ${x}/100${who}` };
+}
 
 /** Slope samples inside a circular landing area (radiusM) around the site, on the 80 m grid, over the chosen baseline. */
 function slopeSamples(lat, lon, grids, radiusM, baselineM) {
@@ -87,23 +115,26 @@ export function evaluate(data, inp) {
         score: null, why: d.tempAvgK == null ? 'no Diviner data' : `avg ${d.tempAvgK} K, max ${d.tempMaxK} K` },
       science: { pass: true, score: d.iceKm == null ? 0 : Math.max(0, 1 - d.iceKm / 5), why: d.iceKm == null ? 'no shallow ice within 5 km' : `shallow ice ${d.iceKm} km away` },
     };
+    for (const c of inp.custom || []) res['custom:' + c.id] = customResult(c, d.site.id);
     for (const [k, v] of Object.entries(res)) if (!v.pass) fails.push(k);
     let num = 0, den = 0;
-    for (const k of Object.keys(TEAMS)) if (res[k].score != null) { num += inp[k].weight * res[k].score; den += inp[k].weight; }
+    for (const k of allKeys(inp)) if (res[k].score != null) { num += weightOf(k, inp) * res[k].score; den += weightOf(k, inp); }
     return { site: d.site, teams: res, fails, score: den ? num / den : 0 };
   });
   rows.sort((a, b) => (a.fails.length - b.fails.length) || (b.score - a.score));
   // each team's favourite site (by its own criterion) and where the teams disagree
   const fav = {};
-  for (const k of Object.keys(TEAMS)) {
+  const keys = allKeys(inp);
+  for (const k of keys) {
     if (k === 'thermal') continue;
     let best = null;
-    for (const r of rows) if (best == null || r.teams[k].score > best.teams[k].score) best = r;
-    fav[k] = best && best.site.id;
+    for (const r of rows) if (r.teams[k].score != null && (best == null || r.teams[k].score > best.teams[k].score)) best = r;
+    if (best) fav[k] = best.site.id;
   }
-  const clashes = rows.filter((r) => r.fails.length && r.fails.length < Object.keys(TEAMS).length).map((r) => ({
-    site: r.site.name, failedBy: r.fails.map((k) => TEAMS[k].label), passedBy: Object.keys(TEAMS).filter((k) => !r.fails.includes(k)).map((k) => TEAMS[k].label) }));
-  return { rows, favourites: fav, clashes };
+  const clashes = rows.filter((r) => r.fails.length && r.fails.length < keys.length).map((r) => ({
+    site: r.site.name, failedBy: r.fails.map((k) => keyLabel(k, inp)), passedBy: keys.filter((k) => !r.fails.includes(k)).map((k) => keyLabel(k, inp)) }));
+  const unrated = (inp.custom || []).map((c) => ({ name: c.name, sites: rows.filter((r) => r.teams['custom:' + c.id].unrated).map((r) => r.site.name) })).filter((u) => u.sites.length);
+  return { rows, favourites: fav, clashes, unrated, labels: Object.fromEntries(keys.map((k) => [k, keyLabel(k, inp)])) };
 }
 
 /** One-at-a-time sensitivity: each numeric limit x0.75 / x1.25 and each weight x0.5 / x1.5. Re-scores only (no re-simulation). */
@@ -113,6 +144,8 @@ export function sensitivity(data, inp) {
   const limits = [['power', 'batteryHours'], ['comms', 'commsGapHours'], ['landing', 'slopeMaxDeg']];
   for (const [t, k] of limits) for (const f of [0.75, 1.25]) cases.push({ label: `${TEAMS[t].label}: ${k} ×${f}`, inp: { ...inp, [t]: { ...inp[t], [k]: inp[t][k] * f } } });
   for (const t of Object.keys(TEAMS)) if (inp[t].weight > 0) for (const f of [0.5, 1.5]) cases.push({ label: `${TEAMS[t].label} weight ×${f}`, inp: { ...inp, [t]: { ...inp[t], weight: inp[t].weight * f } } });
+  for (const c of inp.custom || []) if (c.kind === 'score' && c.weight > 0) for (const f of [0.5, 1.5])
+    cases.push({ label: `${c.name} weight ×${f}`, inp: { ...inp, custom: inp.custom.map((x) => (x.id === c.id ? { ...x, weight: x.weight * f } : x)) } });
   const out = cases.map((c) => { const top = evaluate(data, c.inp).rows[0]; return { label: c.label, top: top.site.name, same: top.site.id === base.site.id, topPasses: top.fails.length === 0 }; });
   return { baseTop: base.site.name, baseTopPasses: base.fails.length === 0, cases: out, stablePct: (100 * out.filter((c) => c.same).length) / out.length };
 }
