@@ -40,12 +40,27 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
     if (inView(lat, lon)) onPickPoint(Math.round(lat * 1e4) / 1e4, Math.round(lon * 1e4) / 1e4);
   };
   const onMap = rows.filter((r) => r.site.id !== 'custom' && inView(r.site.lat, r.site.lon));
-  // Label placement: selected site first, then skip any label whose pin is within 22 px of an already-labelled pin.
-  const placed = [];
-  const labelled = new Set();
+  // Label placement (presentation only): selected site first, then each label tries right, left, above, below its pin
+  // and is drawn only where its box overlaps no other label, no other pin and stays inside the map.
+  // Unlabelled pins still show their name on hover and in the comparison table.
+  const LH = 15, CW = 6.6, PAD = 3;
+  const pins = onMap.map((r) => toXY(r.site.lat, r.site.lon));
+  const boxes = [];
+  const labelPos = new Map();
+  const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   [...onMap].sort((a, b) => (b.site.id === currentId) - (a.site.id === currentId)).forEach((r) => {
     const [x, y] = toXY(r.site.lat, r.site.lon);
-    if (placed.every(([px, py]) => Math.hypot(px - x, py - y) > 22)) { placed.push([x, y]); labelled.add(r.site.id); }
+    const sel = r.site.id === currentId, txt = short(r.site.name), w = txt.length * (sel ? CW + 0.6 : CW);
+    const tries = [
+      { tx: x + 11, ty: y + 4, anchor: 'start', box: { x: x + 9, y: y - LH / 2 - 1, w: w + PAD, h: LH } },
+      { tx: x - 11, ty: y + 4, anchor: 'end', box: { x: x - 11 - w - PAD, y: y - LH / 2 - 1, w: w + PAD, h: LH } },
+      { tx: x, ty: y - 12, anchor: 'middle', box: { x: x - w / 2 - PAD, y: y - 12 - LH + 3, w: w + 2 * PAD, h: LH } },
+      { tx: x, ty: y + 22, anchor: 'middle', box: { x: x - w / 2 - PAD, y: y + 22 - LH + 3, w: w + 2 * PAD, h: LH } },
+    ];
+    const ok = tries.find(({ box }) => box.x >= 2 && box.y >= 2 && box.x + box.w <= S - 2 && box.y + box.h <= S - 30
+      && boxes.every((b) => !hits(box, b))
+      && pins.every(([px, py]) => (px === x && py === y) || !hits(box, { x: px - 7, y: py - 7, w: 14, h: 14 })));
+    if (ok || sel) { const t = ok || tries[0]; boxes.push(t.box); labelPos.set(r.site.id, t); }
   });
   const off = rows.filter((r) => r.site.id !== 'custom' && !inView(r.site.lat, r.site.lon));
   const cur = rows.find((r) => r.site.id === currentId);
@@ -67,7 +82,9 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
         ))}
         {[0, 90, 180, 270].map((lo) => {
           const [x, y] = view === 'full' ? toXY(-80.4, lo) : [S / 2 + 280 * Math.sin((lo * Math.PI) / 180), S / 2 - 280 * Math.cos((lo * Math.PI) / 180)];
-          return <text key={lo} x={x} y={y} className="pmap-grid" textAnchor="middle" dominantBaseline="middle">{lo === 0 ? '0°' : lo === 90 ? '90°E' : lo === 180 ? '180°' : '90°W'}</text>;
+          const edge = lo === 90 ? 'edge-r' : lo === 270 ? 'edge-l' : '';
+          const ex = lo === 90 ? S - 6 : lo === 270 ? 6 : x;
+          return <text key={lo} x={ex} y={y} className={`pmap-grid ${edge}`} textAnchor={lo === 90 ? 'end' : lo === 270 ? 'start' : 'middle'} dominantBaseline="middle">{lo === 0 ? '0°' : lo === 90 ? '90°E' : lo === 180 ? '180°' : '90°W'}</text>;
         })}
         {onMap.map((r) => {
           const [x, y] = toXY(r.site.lat, r.site.lon); const sel = r.site.id === currentId;
@@ -76,7 +93,8 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
               <title>{`${r.site.name}: ${r.verdict.status}`}</title>
               {sel && <circle cx={x} cy={y} r="13" fill="none" stroke="#fff" strokeWidth="2" />}
               <circle cx={x} cy={y} r={sel ? 8 : 6.5} fill={COLOR[r.verdict.status]} stroke="#000000" strokeWidth="2" />
-              {labelled.has(r.site.id) && <text x={x + 10} y={y + 4} className={`pmap-label ${sel ? 'sel' : ''}`}>{short(r.site.name)}</text>}
+              {labelPos.has(r.site.id) && (() => { const L = labelPos.get(r.site.id);
+                return <text x={L.tx} y={L.ty} textAnchor={L.anchor} className={`pmap-label ${sel ? 'sel' : ''}`}>{short(r.site.name)}</text>; })()}
             </g>
           );
         })}
