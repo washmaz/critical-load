@@ -23,7 +23,7 @@ function yearly(lat, lon, elevationM, horizonDeg) {
 }
 
 /** Distance (km) to the nearest 120 m cell matching pred, searching out to maxKm. */
-function nearest(sci, plane, lat, lon, maxKm, pred) {
+export function nearest(sci, plane, lat, lon, maxKm, pred) {
   const [x, y] = llToXY(lat, lon), g = sci[plane];
   const r0 = Math.floor((g.y0 - y) / g.pix), c0 = Math.floor((x - g.x0) / g.pix), k = Math.ceil((maxKm * 1000) / g.pix);
   let best = Infinity;

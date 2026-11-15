@@ -299,7 +299,8 @@ export default function App() {
         </div>
       </section>
 
-      {covered && <LandingSim site={site} landing={s.landing} appOpts={opts} />}
+      {covered && <LandingSim site={site} landing={s.landing} appOpts={opts}
+        onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
 
       <section className="panel">
         <h2>Mission timeline</h2>

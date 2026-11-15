@@ -103,6 +103,7 @@ export function summarize(results, psr) {
   return {
     n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails,
     sunlitPct: { p5: q(ok.map((r) => r.sunlitPct), 0.05), median: q(ok.map((r) => r.sunlitPct), 0.5), p95: q(ok.map((r) => r.sunlitPct), 0.95) },
+    earthPct: { p5: q(ok.map((r) => r.earthPct), 0.05), median: q(ok.map((r) => r.earthPct), 0.5), p95: q(ok.map((r) => r.earthPct), 0.95) },
     longestDarkH: { median: q(ok.map((r) => r.longestDarkH), 0.5), p95: q(ok.map((r) => r.longestDarkH), 0.95) },
     longestCommsGapH: { median: q(ok.map((r) => r.longestCommsGapH), 0.5), p95: q(ok.map((r) => r.longestCommsGapH), 0.95) },
     slopeDeg: { median: q(ok.map((r) => r.slopeDeg ?? 0), 0.5), p95: q(ok.map((r) => r.slopeDeg ?? 0), 0.95) },
