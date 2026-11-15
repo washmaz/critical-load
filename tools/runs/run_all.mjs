@@ -45,7 +45,8 @@ const polar = SITES.filter((s) => s.lat < -80);
 for (const s of polar) {
   if (out.sites.some((x) => x.id === s.id)) continue;
   const r = await simulate(s.lat, s.lon);
-  out.sites.push({ id: s.id, name: s.name, lat: s.lat, lon: s.lon, ...r });
+  const degFromPole = 90 + s.lat; // Artemis III site requirement (not part of the touchdown simulation)
+  out.sites.push({ id: s.id, name: s.name, lat: s.lat, lon: s.lon, degFromPole, withinPoleLimit: degFromPole <= P.poleWithinDeg, ...r });
   console.log(s.id, (100 * r.summary.pSafe).toFixed(1) + '%', r.summary.fails, r.seconds.toFixed(0) + ' s');
   save();
 }
@@ -54,7 +55,7 @@ for (const id of ['connecting-ridge', 'shackleton-rim', 'nobile-rim-1']) {
   const s = SITES.find((x) => x.id === id), t0 = Date.now(), R = 5000;
   const sci = await loadScienceAround(s.lat, s.lon, R + ICE_RANGE_M + 500);
   const g = await loadTerrainAround(s.lat, s.lon, R + 1500);
-  const scr = screenCandidates({ center: s, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode, ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: DEFAULT_WEIGHTS, keep: 30 });
+  const scr = screenCandidates({ center: s, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode, ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: DEFAULT_WEIGHTS, keep: 30, poleWithinDeg: P.poleWithinDeg });
   const items = [];
   for (const cand of scr.candidates.slice(0, 3)) items.push({ cand, sim: await simulate(cand.lat, cand.lon) });
   const ranked = rankVerified(items, DEFAULT_WEIGHTS, (it) => nearest(sci, 'ice', it.cand.lat, it.cand.lon, 5, (v) => v !== 250 && v <= 50));

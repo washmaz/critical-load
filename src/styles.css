@@ -290,6 +290,7 @@ button.small { font-size: 13px; padding: 4px 10px; }
 .team-field input[type="number"], .team-field input[type="text"] { width: 90px; }
 .team-table td.ok { color: var(--go); } .team-table td.bad { color: var(--nogo); }
 .team-table tr.excluded td:nth-child(2) { color: var(--muted); }
+.team-table tr.team-group td { font-weight: 700; font-size: 13px; padding-top: 12px; border-bottom: 1px solid var(--line); }
 .team-result { overflow-x: auto; margin-top: 12px; }
 .custom-criteria { margin: 0 0 10px; }
 .criterion { border-top: 1px solid var(--line); padding: 8px 0; }
@@ -299,3 +300,5 @@ button.small { font-size: 13px; padding: 4px 10px; }
 @media (max-width: 760px) { .criterion-sites { grid-template-columns: 1fr; } }
 #mission-custom { width: 90px; margin-top: 4px; }
 @media (max-width: 760px) { .team-grid { grid-template-columns: 1fr; } }
+
+.sim-sitefail { color: var(--nogo); font-weight: 700; margin: 2px 0; }

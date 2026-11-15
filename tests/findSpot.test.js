@@ -42,3 +42,15 @@ test('rankVerified orders by the weighted score', () => {
   const r = rankVerified([mk(0.5, 90, 90), mk(0.99, 60, 60)], DEFAULT_WEIGHTS);
   assert.ok(r[0].sim.summary.pSafe === 0.99);
 });
+
+test('pole limit: with the Artemis III 6° limit, no candidate lies farther than 6° from the pole', { skip: !have && 'no tiles' }, async () => {
+  const s = SITES.find((x) => x.id === 'nobile-rim-2'); // target point 6.28° from the pole
+  const sci = await loadScienceAround(s.lat, s.lon, 3000 + 5500);
+  const g = await loadTerrainAround(s.lat, s.lon, 4000);
+  const ell = { semiMajorM: 50, semiMinorM: 50, azimuthDeg: 0 };
+  const scr = screenCandidates({ center: s, radiusM: 3000, sci, slope: g.slope, near: g.near, slopeMode: 'ldsm', ellipse: ell, slopeMaxDeg: 10, keep: 30, poleWithinDeg: 6 });
+  assert.ok(scr.rejected.pole > 0, 'some ground in the radius is outside 6°');
+  for (const c of scr.candidates) assert.ok(c.lat <= -84 + 1e-9, `candidate at ${c.lat}`);
+  const free = screenCandidates({ center: s, radiusM: 3000, sci, slope: g.slope, near: g.near, slopeMode: 'ldsm', ellipse: ell, slopeMaxDeg: 10, keep: 30 });
+  assert.equal(free.rejected.pole, 0);
+});

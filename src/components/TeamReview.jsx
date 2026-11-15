@@ -111,13 +111,22 @@ function TeamResult({ res, onLoad }) {
     <div className="team-result">
       <table className="sim-table team-table">
         <thead><tr><th>#</th><th>Site</th><th>Score</th>{keys.map((k) => <th key={k}>{ev.labels[k]}</th>)}<th /></tr></thead>
-        <tbody>{ev.rows.map((r, i) => (
-          <tr key={r.site.id} className={r.fails.length ? 'excluded' : ''}>
-            <td>{i + 1}</td><td>{r.site.name}</td><td className="mono">{r.score.toFixed(3)}</td>
-            {keys.map((k) => { const v = r.teams[k]; return (
-              <td key={k} className={`mono small ${v.unrated ? '' : v.pass ? 'ok' : 'bad'}`} title={v.why}>{v.unrated ? '–' : v.pass ? '✓' : '✗'}{v.score != null ? ` ${(100 * v.score).toFixed(0)}%` : ''}<br /><span className="muted">{v.why}</span></td>); })}
-            <td>{onLoad && <button onClick={() => onLoad(r.site)}>Load</button>}</td>
-          </tr>))}</tbody>
+        <tbody>{(() => {
+          const pass = ev.rows.filter((r) => !r.fails.length), fail = ev.rows.filter((r) => r.fails.length);
+          const row = (r, rank) => (
+            <tr key={r.site.id} className={r.fails.length ? 'excluded' : ''}>
+              <td>{rank}</td><td>{r.site.name}</td><td className="mono">{r.fails.length ? <span className="muted">({r.score.toFixed(3)})</span> : r.score.toFixed(3)}</td>
+              {keys.map((k) => { const v = r.teams[k]; return (
+                <td key={k} className={`mono small ${v.unrated ? '' : v.pass ? 'ok' : 'bad'}`} title={v.why}>{v.unrated ? '–' : v.pass ? '✓' : '✗'}{v.score != null ? ` ${(100 * v.score).toFixed(0)}%` : ''}<br /><span className="muted">{v.why}</span></td>); })}
+              <td>{onLoad && <button onClick={() => onLoad(r.site)}>Load</button>}</td>
+            </tr>);
+          return [
+            <tr key="h-pass" className="team-group"><td colSpan={keys.length + 4}>{pass.length ? `Pass every team's limits (${pass.length}), ranked by weighted score` : 'No site passes every team\'s limits'}</td></tr>,
+            ...pass.map((r, i) => row(r, i + 1)),
+            ...(fail.length ? [<tr key="h-fail" className="team-group"><td colSpan={keys.length + 4}>Fail at least one limit ({fail.length}): not ranked; score shown in brackets for reference only</td></tr>] : []),
+            ...fail.map((r) => row(r, '–')),
+          ];
+        })()}</tbody>
       </table>
       <h3>Where the teams disagree</h3>
       <ul className="small">
@@ -126,10 +135,10 @@ function TeamResult({ res, onLoad }) {
         {ev.clashes.map((c) => <li key={c.site}><strong>{c.site}</strong>: passes {c.passedBy.join(', ')}; rejected by {c.failedBy.join(', ')}</li>)}
       </ul>
       <h3>Sensitivity <span className="muted small">does the winner survive reasonable input changes?</span></h3>
-      <p className="small">Top site <strong>{sen.baseTop}</strong>{sen.baseTopPasses ? '' : ' (fails at least one team)'} stays on top in <strong>{sen.stablePct.toFixed(0)}%</strong> of {sen.cases.length} one-at-a-time changes (limits ×0.75 / ×1.25, weights ×0.5 / ×1.5).</p>
+      <p className="small">Top site <strong>{sen.baseTop}</strong>{sen.baseTopPasses ? '' : ' (fails at least one team: no site passes every limit)'} stays on top in <strong>{sen.stablePct.toFixed(0)}%</strong> of {sen.cases.length} one-at-a-time changes (limits ×0.75 / ×1.25, weights ×0.5 / ×1.5).</p>
       {sen.cases.some((c) => !c.same) && <ul className="small">{sen.cases.filter((c) => !c.same).map((c) => <li key={c.label}>{c.label} → {c.top} on top</li>)}</ul>}
       <p className="hint small">Method: each site is judged at its target point with the app's power and comms rules (real NASA LOLA terrain horizon at the arrays' height), NASA slope over the chosen baseline, NASA permanent shadow and Diviner data.
-        Sites that fail any team's hard limit are listed below the ones that pass. Run the 1,000-touchdown simulation on a site for the full landing-spread check.</p>
+        Sites that fail any team's hard limit are not ranked. This review checks each site's target point (slope over the whole landing area); run the 1,000-touchdown simulation on a site for the full landing-spread check, which can still fail a site that passes here.</p>
     </div>
   );
 }

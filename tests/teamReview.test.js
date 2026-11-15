@@ -20,7 +20,9 @@ test('team review ranks the polar sites, lists clashes and runs the sensitivity 
   assert.equal(ev.rows.length, 11);
   for (let i = 1; i < ev.rows.length; i++) assert.ok(ev.rows[i - 1].fails.length <= ev.rows[i].fails.length);
   // power pass/fail must agree with the app's single-site verdict rule
-  for (const r of ev.rows) { const d = data.find((x) => x.site.id === r.site.id).metrics; assert.equal(r.teams.power.pass, d.sunlitPct > 0 && d.longestDarkH <= 48); }
+  for (const r of ev.rows) { const d = data.find((x) => x.site.id === r.site.id).metrics; assert.equal(r.teams.power.pass, d.sunlitPct > 0 && d.longestDarkH <= inp.power.batteryHours); }
+  // failing sites are never ranked above passing ones
+  const firstFail = ev.rows.findIndex((r) => r.fails.length); if (firstFail >= 0) assert.ok(ev.rows.slice(firstFail).every((r) => r.fails.length));
   assert.ok(sen.cases.length > 0 && sen.stablePct >= 0 && sen.stablePct <= 100);
 });
 

@@ -2,7 +2,7 @@
 // team's hard requirements, scored on each team's criterion, combined into one ranking, and the clashes between teams
 // are listed. A one-at-a-time sensitivity sweep shows whether the top site survives reasonable changes to the inputs.
 import { computeHorizon, llToXY, cell, slopeOverBaseline, localFrame } from './horizonCore.js';
-import { loadTerrainAround, loadNearOnly, loadScienceAround, scienceAt } from './tiles.js';
+import { loadTerrainAround, loadNearOnly, loadScienceAround, scienceAt, loadHires } from './tiles.js';
 import { analyzeSite } from './analysis.js';
 import { terrainFor } from './terrain.js';
 import { nearest } from './pointData.js';
@@ -16,9 +16,13 @@ export const TEAMS = {
   science: { label: 'Science & resources', criterion: 'Closeness of water ice within 1 m (Diviner), 1 at the ice, 0 beyond 5 km' },
 };
 
+// Limits start from NASA's Artemis III requirements (NTRS 20250009323), the same preset the landing simulation uses:
+// within 6° of the pole, lit for the whole stay (no battery), direct-to-Earth comms with no relay, slope < 10° over 100 m,
+// 50 m landing radius (strict reading of "100 m x 100 m"). The 48 h comms gap and the 7-day stay are our settings (NASA
+// gives no number). Every value is editable by the team that owns it.
 export const DEFAULT_TEAM_INPUTS = {
   mission: { stayDays: 7, slipDays: 7, poleWithinDeg: 6, weight: 2 },
-  power: { batteryHours: 48, panelHeightM: 2, weight: 3 },
+  power: { batteryHours: 0, panelHeightM: 2, weight: 3 },
   comms: { commsGapHours: 48, relay: false, weight: 3 },
   landing: { slopeMaxDeg: 10, slopeBaselineM: 100, radiusM: 50, weight: 4 },
   thermal: { minAvgK: null, maxSurfaceK: null, weight: 0 },
@@ -54,20 +58,24 @@ function customResult(c, siteId) {
 }
 
 /** Slope samples inside a circular landing area (radiusM) around the site, on the 80 m grid, over the chosen baseline. */
-function slopeSamples(lat, lon, grids, radiusM, baselineM) {
+function slopeSamples(lat, lon, grids, radiusM, baselineM, hr = null) {
   const [x, y] = llToXY(lat, lon), f = localFrame(x, y), g = grids.slope, reach = radiusM * f.k + g.pix;
+  // 100 m baseline: NASA 5 m elevation where a NASA site map covers the point (same rule as the landing simulation)
+  let n5 = 0, nAll = 0;
+  const s100 = (px, py) => { nAll++; const v = hr && baselineM === 100 ? hr.slope100(px, py) : NaN; if (v === v) { n5++; return v; } return slopeOverBaseline(px, py, grids.near, baselineM); };
   const r0 = Math.floor((g.y0 - (y + reach)) / g.pix), r1 = Math.floor((g.y0 - (y - reach)) / g.pix);
   const c0 = Math.floor((x - reach - g.x0) / g.pix), c1 = Math.floor((x + reach - g.x0) / g.pix);
   const vals = [];
   for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
     const px = g.x0 + (c + 0.5) * g.pix, py = g.y0 - (r + 0.5) * g.pix;
     if (Math.hypot(px - x, py - y) / f.k > radiusM) continue;
-    const v = baselineM === 'ldsm' ? cell(g, r, c) : slopeOverBaseline(px, py, grids.near, baselineM);
+    const v = baselineM === 'ldsm' ? cell(g, r, c) : s100(px, py);
     if (v === v) vals.push(v);
   }
-  const at = baselineM === 'ldsm' ? cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix)) : slopeOverBaseline(x, y, grids.near, baselineM);
+  const at = baselineM === 'ldsm' ? cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix)) : s100(x, y);
   if (!vals.length && at === at) vals.push(at);
-  return { atTarget: at, samples: vals };
+  const src = baselineM === 'ldsm' ? 'NASA LDSM 80 m' : n5 === nAll ? 'NASA 5 m elevation' : n5 ? 'NASA 5 m + 80 m elevation' : 'NASA 80 m elevation';
+  return { atTarget: at, samples: vals, src };
 }
 
 /**
@@ -86,13 +94,14 @@ export async function siteData(site, landingMs, inp) {
   const opts = { missionDays: inp.mission.stayDays, slipDays: inp.mission.slipDays, batteryHours: inp.power.batteryHours, commsGapHours: inp.comms.commsGapHours, relay: inp.comms.relay, marginDeg: inp.marginDeg ?? 0.5, stepHours: 1 };
   const a = analyzeSite({ ...site, terrain }, landingMs, opts);
   const grids = await loadNearOnly(site.lat, site.lon, inp.landing.radiusM + 300);
-  const sl = slopeSamples(site.lat, site.lon, grids, inp.landing.radiusM, inp.landing.slopeBaselineM);
+  const hr = inp.landing.slopeBaselineM === 100 ? await loadHires(site.lat, site.lon, inp.landing.radiusM + 300) : null;
+  const sl = slopeSamples(site.lat, site.lon, grids, inp.landing.radiusM, inp.landing.slopeBaselineM, hr);
   const sci = await loadScienceAround(site.lat, site.lon, 5600);
   const here = scienceAt(sci, site.lat, site.lon);
   const iceKm = nearest(sci, 'ice', site.lat, site.lon, 5, (v) => v !== 250 && v <= 50);
   return {
     site, metrics: a.result.metrics, scan: a.scan.map((c) => ({ t: c.t, metrics: c.metrics })),
-    slopeAtTarget: sl.atTarget, slopeSamples: sl.samples, psr: here.psr, tempAvgK: here.tempAvgK, tempMaxK: here.tempMaxK, iceKm,
+    slopeAtTarget: sl.atTarget, slopeSamples: sl.samples, slopeSrc: sl.src, psr: here.psr, tempAvgK: here.tempAvgK, tempMaxK: here.tempMaxK, iceKm,
     degFromPole: 90 + site.lat,
   };
 }
@@ -110,7 +119,7 @@ export function evaluate(data, inp) {
       comms: { pass: inp.comms.relay || m.longestCommsGapH <= inp.comms.commsGapHours, score: m.earthPct / 100, why: inp.comms.relay ? 'relay assumed' : `longest gap ${m.longestCommsGapH.toFixed(0)} h (limit ${inp.comms.commsGapHours} h)` },
       landing: { pass: d.slopeAtTarget === d.slopeAtTarget && d.slopeAtTarget <= inp.landing.slopeMaxDeg && !d.psr,
         score: d.slopeSamples.length ? d.slopeSamples.filter((v) => v <= inp.landing.slopeMaxDeg).length / d.slopeSamples.length : 0,
-        why: `${d.psr ? 'target in NASA permanent shadow; ' : ''}slope at target ${d.slopeAtTarget.toFixed(1)}° (limit ${inp.landing.slopeMaxDeg}°)` },
+        why: `${d.psr ? 'target in NASA permanent shadow; ' : ''}slope at target ${d.slopeAtTarget.toFixed(1)}° (limit ${inp.landing.slopeMaxDeg}°; ${d.slopeSrc || 'NASA 80 m elevation'})` },
       thermal: { pass: (inp.thermal.minAvgK == null || d.tempAvgK == null || d.tempAvgK >= inp.thermal.minAvgK) && (inp.thermal.maxSurfaceK == null || d.tempMaxK == null || d.tempMaxK <= inp.thermal.maxSurfaceK),
         score: null, why: d.tempAvgK == null ? 'no Diviner data' : `avg ${d.tempAvgK} K, max ${d.tempMaxK} K` },
       science: { pass: true, score: d.iceKm == null ? 0 : Math.max(0, 1 - d.iceKm / 5), why: d.iceKm == null ? 'no shallow ice within 5 km' : `shallow ice ${d.iceKm} km away` },
@@ -142,7 +151,11 @@ export function sensitivity(data, inp) {
   const base = evaluate(data, inp).rows[0];
   const cases = [];
   const limits = [['power', 'batteryHours'], ['comms', 'commsGapHours'], ['landing', 'slopeMaxDeg']];
-  for (const [t, k] of limits) for (const f of [0.75, 1.25]) cases.push({ label: `${TEAMS[t].label}: ${k} ×${f}`, inp: { ...inp, [t]: { ...inp[t], [k]: inp[t][k] * f } } });
+  for (const [t, k] of limits) {
+    // a zero limit (e.g. Artemis III: no battery, lit the whole stay) can't be scaled, so test +12 h instead
+    if (inp[t][k] === 0) cases.push({ label: `${TEAMS[t].label}: ${k} +12 h`, inp: { ...inp, [t]: { ...inp[t], [k]: 12 } } });
+    else for (const f of [0.75, 1.25]) cases.push({ label: `${TEAMS[t].label}: ${k} ×${f}`, inp: { ...inp, [t]: { ...inp[t], [k]: inp[t][k] * f } } });
+  }
   for (const t of Object.keys(TEAMS)) if (inp[t].weight > 0) for (const f of [0.5, 1.5]) cases.push({ label: `${TEAMS[t].label} weight ×${f}`, inp: { ...inp, [t]: { ...inp[t], weight: inp[t].weight * f } } });
   for (const c of inp.custom || []) if (c.kind === 'score' && c.weight > 0) for (const f of [0.5, 1.5])
     cases.push({ label: `${c.name} weight ×${f}`, inp: { ...inp, custom: inp.custom.map((x) => (x.id === c.id ? { ...x, weight: x.weight * f } : x)) } });

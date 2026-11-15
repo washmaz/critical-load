@@ -144,7 +144,8 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
 
 export function SimResult({ res }) {
   const s = res.summary, f = s.fails, n = s.n;
-  const tone = s.pSafe >= 0.99 ? 'go' : s.pSafe >= 0.9 ? 'caution' : 'nogo';
+  const siteFails = (res.checks || []).filter((c) => c.ok === false);
+  const tone = siteFails.length ? 'nogo' : s.pSafe >= 0.99 ? 'go' : s.pSafe >= 0.9 ? 'caution' : 'nogo';
   const bars = [
     ['Too steep', f.slope, `slope over ${res.opts.slopeMaxDeg}° (${res.opts.slopeMode === 'ldsm' ? 'NASA LDSM 80 m' : res.opts.slopeMode === 'nasa5m' ? 'NASA 5 m map + uncertainty' : `${res.opts.slopeMode} m baseline`})`],
     ['Permanent shadow', f.shadow, 'NASA LPSR: never sunlit'],
@@ -157,7 +158,8 @@ export function SimResult({ res }) {
       <div className={`sim-headline ${tone}`}>
         <div className="sim-p">{pct(s.pSafe)}</div>
         <div>
-          <p className="sim-p-label">of touchdowns are safe and meet every requirement</p>
+          <p className="sim-p-label">of touchdowns are safe and meet every requirement{siteFails.length ? ', but the site itself fails a requirement:' : ''}</p>
+          {siteFails.map((c) => <p key={c.label} className="sim-sitefail">✗ {c.label}: {c.value}</p>)}
           <p className="muted small">Ellipse {res.ell.semiMajorM} × {res.ell.semiMinorM} m · arrays at {res.opts.panelHeightM} m · 95 % confidence {pct(s.ci95[0])}–{pct(s.ci95[1])} (Wilson) · {n} touchdowns{s.noData ? ` (+${s.noData} with no NASA data)` : ''} · {res.workers} parallel workers · {res.seconds.toFixed(0)} s</p>
         </div>
       </div>
@@ -238,7 +240,7 @@ function FindSpot({ site, landing, opts, ell, preset, onPickPoint }) {
       const R = radiusKm * 1000;
       const sci = await loadScienceAround(site.lat, site.lon, R + ICE_RANGE_M + 500);
       const g = await loadTerrainAround(site.lat, site.lon, R + ell.semiMajorM + 1000);
-      const scr = screenCandidates({ center: site, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode ?? 'ldsm', ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: w, keep: 30 });
+      const scr = screenCandidates({ center: site, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode ?? 'ldsm', ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: w, keep: 30, poleWithinDeg: preset && preset.poleWithinDeg });
       if (!scr.candidates.length) { setOut({ scr, ranked: [], seconds: (performance.now() - t0) / 1000 }); setSt(null); return; }
       const todo = scr.candidates.slice(0, nVerify), items = [];
       for (let i = 0; i < todo.length; i++) {
@@ -278,21 +280,23 @@ function FindSpot({ site, landing, opts, ell, preset, onPickPoint }) {
       <p className="muted small">Score = (Σ weight × criterion) / Σ weights. Criteria, each 0–1: landing safety (stage 1: share of the ellipse under the slope limit; stage 2: P(safe)), power (NASA long-term sunlit %; stage 2: median sunlit this mission), comms (NASA long-term Earth-visible %; stage 2: median this mission), water ice (1 at the ice, 0 beyond 5 km; Diviner, ice within 1 m of the surface).</p>
       {st && <div className="sim-progress"><div style={{ width: `${100 * (st.frac || 0)}%` }} /><span>{st.phase} · {((performance.now() - st.t0) / 1000).toFixed(0)} s</span></div>}
       {err && <p className="error">Search failed: {err}</p>}
-      {out && <FindResult out={out} site={site} radiusKm={radiusKm} onPickPoint={onPickPoint} />}
+      {out && <FindResult out={out} site={site} radiusKm={radiusKm} onPickPoint={onPickPoint} stayDays={opts.missionDays} ellM={ell.semiMajorM} />}
     </div>
   );
 }
 
-export function FindResult({ out, site, radiusKm, onPickPoint }) {
+export function FindResult({ out, site, radiusKm, onPickPoint, stayDays, ellM }) {
+  const [sx, sy] = llToXY(site.lat, site.lon);
+  const distKm = (c) => { const [x, y] = llToXY(c.lat, c.lon); return Math.hypot(x - sx, y - sy) / localFrame(sx, sy).k / 1000; };
   const { scr, ranked } = out, rj = scr.rejected;
   return (
     <div className="find-result">
-      <p className="small">Screened {scr.cells.toLocaleString()} NASA pixels: {rj.earth.toLocaleString()} fail Earth ≥ {HARD_FILTERS.minEarthPct}%, {rj.sun.toLocaleString()} fail Sun ≥ {HARD_FILTERS.minSunPct}%, {rj.psr.toLocaleString()} permanently shadowed{rj.noData ? `, ${rj.noData} no data` : ''};
+      <p className="small">Screened {scr.cells.toLocaleString()} NASA pixels: {rj.earth.toLocaleString()} fail Earth ≥ {HARD_FILTERS.minEarthPct}%, {rj.sun.toLocaleString()} fail Sun ≥ {HARD_FILTERS.minSunPct}%, {rj.psr.toLocaleString()} permanently shadowed{rj.pole ? `, ${rj.pole.toLocaleString()} outside the pole limit` : ''}{rj.noData ? `, ${rj.noData} no data` : ''};
         {' '}{scr.screened.toLocaleString()} pass. Fully checked {ranked.length} · {out.seconds.toFixed(0)} s.</p>
       {!ranked.length ? <p className="error">No ground in this radius passes NASA's Sun / Earth filters. Try a larger radius or another centre.</p> : (
         <div className="grid-2 sim-grid">
           <table className="sim-table find-table">
-            <thead><tr><th>#</th><th>Stage 1 #</th><th>Where</th><th>P(safe)</th><th>Sunlit / Earth this mission</th><th>Ice</th><th>Score</th><th /></tr></thead>
+            <thead><tr><th>#</th><th>Stage 1 #</th><th>Where</th><th>From your site</th><th>P(safe)</th><th>Sunlit / Earth this mission</th><th>Ice</th><th>Score</th><th /></tr></thead>
             <tbody>{ranked.map((r, i) => {
               const s = r.sim.summary, c = r.cand;
               return (
@@ -300,6 +304,7 @@ export function FindResult({ out, site, radiusKm, onPickPoint }) {
                   <td><strong>{i + 1}</strong></td>
                   <td className="mono">{r.rank0}</td>
                   <td className="mono small">{Math.abs(c.lat).toFixed(4)}°S {Math.abs(c.lon).toFixed(4)}°{c.lon < 0 ? 'W' : 'E'}<br /><span className="muted">NASA long-term: Sun {c.sunPct}% · Earth {c.earthPct}%</span></td>
+                  <td className="mono">{distKm(c).toFixed(2)} km</td>
                   <td className="mono">{(100 * s.pSafe).toFixed(1)}%<br /><span className="muted small">{(100 * s.ci95[0]).toFixed(1)}–{(100 * s.ci95[1]).toFixed(1)}%</span></td>
                   <td className="mono">{s.sunlitPct.median.toFixed(0)}% / {s.earthPct.median.toFixed(0)}%<br /><span className="muted small">dark ≤ {Math.round(s.longestDarkH.median)} h</span></td>
                   <td className="mono">{r.iceKm == null ? '> 5 km' : `${r.iceKm} km`}</td>
@@ -312,7 +317,8 @@ export function FindResult({ out, site, radiusKm, onPickPoint }) {
           <FindMap site={site} radiusKm={radiusKm} scr={scr} ranked={ranked} />
         </div>
       )}
-      <p className="hint small">Why the order can change: stage 1 ranks by NASA's 18.6-year averages (how often a spot is lit or sees Earth in general), stage 2 by your exact mission dates. A spot that is sunny on average can still have a long dark spell during your particular 14 days, so the final rank (stage 2) is the one to use. "Load" opens a candidate as your site.</p>
+      <p className="hint small">Why the order can change: stage 1 ranks by NASA's 18.6-year averages (how often a spot is lit or sees Earth in general), stage 2 by your exact mission dates. A spot that is sunny on average can still have a long dark spell during your particular {stayDays}-day stay, so the final rank (stage 2) is the one to use. "Load" opens a candidate as your site.</p>
+      <p className="hint small"><strong>These are new landing targets, not adjustments of yours.</strong> Your landing area is a {ellM} m radius; a spot more than that from your site is a different site, and its own landing area is what the 1,000-touchdown check above tested.</p>
     </div>
   );
 }

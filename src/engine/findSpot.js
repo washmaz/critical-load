@@ -61,9 +61,9 @@ export const ICE_RANGE_M = 5000; // ice within 1 m of the surface counts fully a
 
 /**
  * Stage 1 screen. sci = tiles.loadScienceAround(...) planes, slope = 80 m slope grid.
- * Returns { candidates (best first, at least minSepM apart), screened, rejected: {psr, sun, earth, noData} }.
+ * Returns { candidates (best first, at least minSepM apart), screened, rejected: {psr, sun, earth, noData, pole} }. poleWithinDeg (optional) drops ground farther than that from the pole.
  */
-export function screenCandidates({ center, radiusM, sci, slope, near = null, slopeMode = 'ldsm', ellipse, slopeMaxDeg, weights = DEFAULT_WEIGHTS, keep = 30, minSepM }) {
+export function screenCandidates({ center, radiusM, sci, slope, near = null, slopeMode = 'ldsm', ellipse, slopeMaxDeg, weights = DEFAULT_WEIGHTS, keep = 30, minSepM, poleWithinDeg = null }) {
   const g = sci.sun, [cx, cy] = llToXY(center.lat, center.lon);
   const pad = Math.ceil(ICE_RANGE_M / g.pix);
   const k0 = localFrame(cx, cy).k, R = Math.ceil((radiusM * k0) / g.pix);
@@ -71,11 +71,14 @@ export function screenCandidates({ center, radiusM, sci, slope, near = null, slo
   const r0 = rc - R - pad, c0 = cc - R - pad, h = 2 * (R + pad) + 1, w = h;
   const ice = chamferField(r0, c0, h, w, g.pix, (r, c) => { const v = cell(sci.ice, r, c); return v === v && v !== 250 && v !== 255 && v <= 50; });
   const W = weights, wsum = W.safety + W.power + W.comms + W.resources || 1;
-  const rej = { psr: 0, sun: 0, earth: 0, noData: 0 }, list = [];
+  const rej = { psr: 0, sun: 0, earth: 0, noData: 0, pole: 0 }, list = [];
+  // pole limit (e.g. Artemis III: within 6°): on the polar stereographic grid, latitude depends only on distance from the pole
+  const rhoMax = poleWithinDeg == null ? Infinity : 2 * 1737400 * Math.tan(Math.PI / 4 + (-90 + poleWithinDeg) * Math.PI / 360);
   for (let dr = -R; dr <= R; dr++) for (let dc = -R; dc <= R; dc++) {
     const r = rc + dr, c = cc + dc;
     const x = g.x0 + (c + 0.5) * g.pix, y = g.y0 - (r + 0.5) * g.pix;
     if (Math.hypot(x - cx, y - cy) > radiusM * k0) continue;
+    if (Math.hypot(x, y) > rhoMax) { rej.pole++; continue; }
     const s = cell(sci.sun, r, c), e = cell(sci.earth, r, c);
     if (!(s === s) || s === 255 || !(e === e) || e === 255) { rej.noData++; continue; }
     if (s === 254) { rej.psr++; continue; }
