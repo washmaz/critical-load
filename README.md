@@ -117,7 +117,7 @@ Deeper: [METHOD.md](METHOD.md) (every step with sources and validation) · [DATA
 
 ## Use of AI (Super Intelligence)
 - **Claude (Anthropic):** used throughout as a tool to move faster; the idea, product decisions and final judgement were the team's. Three Claude assistants coordinated through a shared Google Drive folder (project manager, builder, tester/validator). Claude wrote and reviewed most of the code under our direction, helped build an independent re-implementation and the JPL Horizons comparison, and drafted documentation and the demo script, which we edited. Commits credit Claude.
-- No AI-generated images, video or audio are used. No NASA logos or branding.
+- The 30-second demo video is a screen recording of the real app (main a95e601, locked demo, no code changed), captured and edited with Claude in headless Chrome. If the voice-over version is used, its voice is AI-generated text-to-speech (Piper, open source, voice en_US "lessac"), and the video and its description say so. No AI-generated images. No NASA logos or branding.
 
 ## Results with real terrain (smooth Moon → LOLA terrain)
 | Site | Sunlit, next 30 days | Sunlit over a year | Earth in view over a year | Slope | Nearest ice trap |
