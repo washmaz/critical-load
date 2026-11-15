@@ -7,7 +7,7 @@
 ## Team
 - Washma ([@washmaz](https://github.com/washmaz)): project lead, testing, demo, submission
 - Danah ([@danahshanab-debug](https://github.com/danahshanab-debug)): build lead (engine, UI, deploy, validation)
-- John ([@john-whitbread](https://github.com/john-whitbread))
+- John ([@john-whitbread](https://github.com/john-whitbread)): testing and validation
 
 ## Challenge
 Lunar Landing Site Navigator
@@ -18,21 +18,19 @@ Lunar Landing Site Navigator is a free web app that answers two questions for an
 ## Project Demo
 _Link (public, no login): 30-second video with English subtitles._
 
-### Demo script (30 s, DRAFT v2)
+### Demo script (30 s, LOCKED: one moment only)
 | Time | On screen | Voice-over / subtitle |
 | --- | --- | --- |
-| 0:00 | Team name card | "We're Critical Load, from Oshawa." |
-| 0:02 | Moon south pole view (no NASA logos) | "NASA wants to land astronauts at the Moon's south pole." |
-| 0:05 | App title + tagline | "Lunar Landing Site Navigator: a weather app for the Moon." |
-| 0:08 | Pick Connecting ridge + date | "Pick a spot and a date." |
-| 0:11 | Smooth Moon: CAUTION, 100% sun | "On a smooth Moon, this site looks sunny." |
-| 0:15 | Toggle real terrain: NO-GO, horizon silhouette | "With NASA's real terrain, the hills block the Sun: NO-GO." |
-| 0:20 | Compare: Shackleton rim vs Connecting ridge | "A few kilometres away, Shackleton rim stays lit." |
-| 0:25 | Validation table | "Built on NASA LOLA data, checked against JPL Horizons." |
-| 0:28 | App link | "Simple answers for the next giant leap." |
+| 0:00 | Team name + Moon south pole (no NASA logos) | "NASA wants to land astronauts at the Moon's south pole." |
+| 0:05 | App: pick Connecting ridge + date | "We built a weather app for the Moon. Pick a spot and a date." |
+| 0:10 | Flat Moon: CAUTION, Sun up | "On a flat Moon, this spot looks sunny." |
+| 0:15 | Toggle real terrain: NO-GO, horizon silhouette over the Sun | "With NASA's real terrain, the hills block the Sun. NO-GO." |
+| 0:22 | Text card | "Built on NASA LOLA terrain. Checked against JPL Horizons." |
+| 0:27 | App link + team name | "Critical Load. Simple answers for the next giant leap." |
 
 ## Final Project
-_Link to deployed app + this repo (repo must be public before submitting)._
+- Live app: https://critical-load.vercel.app
+- Code: https://github.com/washmaz/critical-load
 
 ## Detailed Description
 - What it does: pick a lunar site and date/time; see Sun and Earth on a sky dome with the real terrain horizon, solar elevation, sunlit / Earth-visible status, time to next sunset/Earthset, a ~30-day timeline, and side-by-side site comparison. A "Use real terrain (NASA LOLA)" toggle shows how much terrain changes the answer.
@@ -45,17 +43,22 @@ _Link to deployed app + this repo (repo must be public before submitting)._
 ## NASA Data Used
 _At least one NASA data source is required for Global Awards._
 - **NASA LOLA (Lunar Orbiter Laser Altimeter), via NASA GSFC PGDA "A New View of the Lunar South Pole from LOLA":** LDEM_80S_80MPP_ADJ (80 m/px elevation), LDSM_80S_80MPP_ADJ (slope), LPSR_80S_20MPP_ADJ_1km2 (permanently shadowed regions > 1 km²). Used for terrain horizons, slope and nearest ice trap.
-- **JPL Horizons:** validation of Sun/Earth azimuth & elevation at lunar sites (pending, Sunday).
+- **JPL DE421 planetary and lunar ephemeris (NASA JPL, via NAIF SPICE kernels):** precomputed Sun/Earth positions for the preset sites (see DATA_LAYER.md).
+- **JPL Horizons:** independent validation of Sun/Earth azimuth & elevation at lunar sites, also available live in the app via /api/horizons.
+- _More datasets (Artemis III regions, NASA PGDA illumination, Diviner, crater database): see tools/science/README.md and DATA_LAYER.md; to be summarised here._
 
 ## Space Agency Partner Data & Other References
 - Barker, M. K. et al. (2023), "A New View of the Lunar South Pole from the Lunar Orbiter Laser Altimeter (LOLA)", Planetary Science Journal 4, 183, doi:10.3847/PSJ/acf3e1. Data: doi:10.60903/gsfcpgda-lola-spole, https://pgda.gsfc.nasa.gov/products/90
+- Folkner, W. M., Williams, J. G., Boggs, D. H. (2008), The Planetary and Lunar Ephemeris DE 421, JPL IOM 343R-08-003; NAIF SPICE kernels: https://naif.jpl.nasa.gov/pub/naif/generic_kernels/
+- JPL Horizons System API: https://ssd-api.jpl.nasa.gov/doc/horizons.html
 - astronomy-engine, Don Cross, MIT licence: https://github.com/cosinekitty/astronomy
+- Skyfield, Brandon Rhodes, MIT licence: https://rhodesmill.org/skyfield/
 - Archinal et al. (2018), Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015 (IAU WGCCRE 2015)
 - Vite: https://vitejs.dev
 - React: https://react.dev
 
 ## Use of AI (Super Intelligence)
-- **Claude (Anthropic):** used by the team for planning, reading the submission guides, coordinating work between teammates, drafting documentation and the demo script, writing/reviewing code (calculation engine, terrain pipeline, UI), and an independent cross-check of the engine. _Add specifics as we go._
+- **Claude (Anthropic):** used by the team for planning, reading the submission guides, coordinating work between teammates, drafting documentation and the demo script, writing/reviewing code (calculation engine, terrain pipeline, UI), testing, and an independent cross-check of the engine. _Add specifics as we go._
 - AI-generated images/videos must carry a visible watermark; AI-generated code/data must be labelled in text or metadata. No NASA logos or branding in generated content.
 
 ## Results with real terrain (smooth Moon → LOLA terrain)
@@ -71,18 +74,20 @@ _At least one NASA data source is required for Global Awards._
 ## Validation log
 | Check | Result |
 | --- | --- |
-| Shackleton rim (89.9°S, 0°E), 2026-11-14 18:00 UTC | Sun alt +1.509°, az 117.484° (sunlit). Earth alt −3.742°, az 357.728° (not visible; next Earthrise 2026-11-17 14:54 UTC) |
+| Near-pole test point (89.9°S, 0°E), 2026-11-14 18:00 UTC | Sun alt +1.509°, az 117.484° (sunlit). Earth alt −3.742°, az 357.728° (not visible; next Earthrise 2026-11-17 14:54 UTC) |
 | Independent re-implementation (separate code, same method) | Sun +1.509° / 117.478°, Earth −3.742° / 357.728°: agrees to 0.006° |
+| **JPL Horizons** vs our engine, 89.9°S 0°E, 2026-11-14 18:00 UTC | Horizons: Sun az 117.48°, el +1.51°; Earth az 357.73°, el −3.74°. Ours: 117.484° / +1.509°; 357.728° / −3.742°. Agreement ≈ 0.01° |
+| JPL DE421 tables vs live engine, 8 sites, every 6 h for 26 months | max 0.013° on the sky; RMS ≈ 0.003° in altitude |
 | Earth altitude at pole vs astronomy-engine Libration() | −3.842° vs −3.617°; 0.225° gap ≈ expected topocentric parallax |
 | JS engine vs Python terrain pipeline, Connecting ridge, 30 days | 67.9% vs 68.1% sunlit; 31.7% vs 31.7% Earth in view |
 | Malapert Massif Earth visibility with terrain | 100% over a year, consistent with its study as a communications site |
-| JPL Horizons, 3 site/time pairs | _pending (Sunday)_ |
+| JPL Horizons, full table (4+ sites × 3 times, terrain off) | _in progress_ |
 
 ## Submission Checklist
 - [ ] All teammates registered at the Oshawa event and listed on the Members tab
 - [ ] Every form field filled in, in English
 - [ ] Demo ≤ 30 s (subtitled) or ≤ 7 slides
-- [ ] All links public and tested in a private browser (make this repo public!)
+- [ ] All links public and tested in a private browser (repo is public ✓)
 - [ ] NASA data described; all other sources cited
 - [ ] AI use disclosed and watermarked
 - [ ] No personal info or anyone under 18 in the project
