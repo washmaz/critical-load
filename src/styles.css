@@ -302,3 +302,34 @@ button.small { font-size: 13px; padding: 4px 10px; }
 @media (max-width: 760px) { .team-grid { grid-template-columns: 1fr; } }
 
 .sim-sitefail { color: var(--nogo); font-weight: 700; margin: 2px 0; }
+
+/* ---- UI fixes (15 Nov, presentation only) ---- */
+/* Simulation forms: a later rule forced 4 columns everywhere, so phones got 4 tiny columns.
+   Columns now wrap to fit their content; long option labels get room instead of being cut. */
+.sim-controls { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.sim-controls select { width: 100%; min-width: 0; text-overflow: ellipsis; }
+.sim-controls .sim-go { align-self: end; }
+.sim-controls .sim-go button { width: 100%; }
+@media (max-width: 760px) { .sim-controls, .find-controls { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .sim-controls, .find-controls { grid-template-columns: 1fr; } }
+
+/* Charts on phones: keep text readable by scrolling sideways instead of shrinking to 3 px type. */
+.chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.chart-scroll-hint { display: none; }
+@media (max-width: 640px) {
+  .chart-scroll > .timeline, .chart-scroll > .slip { width: 760px; min-width: 760px; max-width: none; }
+  .chart-scroll-hint { display: block; }
+}
+
+/* One look for every main action button (team review used the plain grey button). */
+button.primary { background: var(--nasa-blue); border-color: var(--nasa-blue); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: var(--nasa-blue-shade); border-color: var(--nasa-blue-shade); }
+button.primary:disabled { opacity: .55; cursor: progress; }
+
+/* Map edge labels sit inside the frame. */
+.pmap-grid.edge-l { text-anchor: start; } .pmap-grid.edge-r { text-anchor: end; }
+/* Whole Moon map (NASA Moon Trek tiles via Leaflet), collapsed by default so the demo layout above is unchanged */
+.moon-global summary { cursor: pointer; list-style: revert; }
+.moon-global summary h2 { display: inline; }
+.moon-global-map { height: 300px; width: 100%; border-radius: 8px; background: #000; margin: 8px 0; }
+@media (max-width: 480px) { .moon-global-map { height: 240px; } }
