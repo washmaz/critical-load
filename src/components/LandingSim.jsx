@@ -107,8 +107,9 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
         <div className="field"><label htmlFor="slp">Max slope (°)</label>
           <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /></div>
         <div className="field"><label htmlFor="slb">Slope measured over</label>
-          <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' ? 'ldsm' : +e.target.value)}>
-            <option value="100">100 m baseline (from NASA LOLA elevation)</option>
+          <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
+            <option value="100">100 m baseline (NASA 5 m elevation where mapped, else 80 m)</option>
+            <option value="nasa5m">Lander footprint: NASA 5 m site map + NASA uncertainty</option>
             <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
           </select></div>
         <div className="field"><label htmlFor="pnl">Solar arrays / antenna height</label>
@@ -145,7 +146,7 @@ export function SimResult({ res }) {
   const s = res.summary, f = s.fails, n = s.n;
   const tone = s.pSafe >= 0.99 ? 'go' : s.pSafe >= 0.9 ? 'caution' : 'nogo';
   const bars = [
-    ['Too steep', f.slope, `slope over ${res.opts.slopeMaxDeg}° (${res.opts.slopeMode === 'ldsm' ? 'NASA LDSM 80 m' : `${res.opts.slopeMode} m baseline, NASA LOLA`})`],
+    ['Too steep', f.slope, `slope over ${res.opts.slopeMaxDeg}° (${res.opts.slopeMode === 'ldsm' ? 'NASA LDSM 80 m' : res.opts.slopeMode === 'nasa5m' ? 'NASA 5 m map + uncertainty' : `${res.opts.slopeMode} m baseline`})`],
     ['Permanent shadow', f.shadow, 'NASA LPSR: never sunlit'],
     ['Not enough power', f.power, res.opts.batteryHours === 0 ? 'any dark hour during the stay' : `dark longer than ${res.opts.batteryHours} h`],
     ...(s.thermalChecked ? [['Outside your thermal limits', f.thermal, `Diviner: avg < ${res.opts.thermalLimits.minAvgK ?? '–'} K or max > ${res.opts.thermalLimits.maxSurfaceK ?? '–'} K${s.thermalNoData ? ` (${s.thermalNoData} no data)` : ''}`]] : []),
@@ -175,7 +176,8 @@ export function SimResult({ res }) {
             <tr><td>Sunlit this mission</td><td>{s.sunlitPct.p5.toFixed(0)}% – {s.sunlitPct.p95.toFixed(0)}% <span className="muted small">(5th–95th pct, median {s.sunlitPct.median.toFixed(0)}%)</span></td></tr>
             <tr><td>Longest dark</td><td>median {fmtH(s.longestDarkH.median)}, worst 5 % {fmtH(s.longestDarkH.p95)}</td></tr>
             <tr><td>Longest comms gap</td><td>median {fmtH(s.longestCommsGapH.median)}, worst 5 % {fmtH(s.longestCommsGapH.p95)}</td></tr>
-            <tr><td>Slope ({res.opts.slopeMode === 'ldsm' ? 'NASA LDSM' : `${res.opts.slopeMode} m baseline`})</td><td>median {s.slopeDeg.median.toFixed(1)}°, worst 5 % {s.slopeDeg.p95.toFixed(1)}°</td></tr>
+            <tr><td>Slope data used</td><td>{Object.entries(s.slopeSources || {}).map(([k, v]) => `${({ '5m': 'NASA 5 m site map', '5m-dem': '100 m baseline from NASA 5 m elevation', '80m-dem': '100 m baseline from NASA 80 m elevation', '80m-ldsm': 'NASA LDSM 80 m' })[k] || k}: ${(100 * v / s.n).toFixed(0)}%`).join(' · ')}</td></tr>
+            <tr><td>Slope ({res.opts.slopeMode === 'ldsm' ? 'NASA LDSM' : res.opts.slopeMode === 'nasa5m' ? 'NASA 5 m, with uncertainty' : `${res.opts.slopeMode} m baseline`})</td><td>median {s.slopeDeg.median.toFixed(1)}°, worst 5 % {s.slopeDeg.p95.toFixed(1)}°</td></tr>
             {res.thermal.tempAvgK && <tr><td>Ground temperature (Diviner)</td><td>avg {Math.round(res.thermal.tempAvgK.min)}–{Math.round(res.thermal.tempAvgK.max)} K, yearly max up to {Math.round(res.thermal.tempMaxK.max)} K <span className="muted small">({s.thermalChecked ? 'checked against your limits' : 'report only: no published limit'})</span></td></tr>}
             <tr><td>Sun up at touchdown <span className="muted small">(NASA: approach lighting is beneficial)</span></td><td>{s.litAtLandingPct.toFixed(0)}% of touchdowns · Earth up {s.earthAtLandingPct.toFixed(0)}%</td></tr>
             <tr><td>Water ice within 1 m (Diviner)</td><td>{res.thermal.iceWithin1mPct.toFixed(0)}% of touchdowns</td></tr>
@@ -348,7 +350,7 @@ function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
     ['Earth must clear the terrain by', `${opts.earthMinElevDeg ?? opts.marginDeg}°`, opts.earthMinElevDeg != null ? 'ESA study' : 'Uncertainty margin (your setting)', OWNERS.comms],
     ['Landing accuracy (99.7 % ellipse)', `${ell.semiMajorM} m × ${ell.semiMinorM} m half-axes`, ACCURACY[acc].label, OWNERS.accuracy],
     ['Slope limit', `${opts.slopeMaxDeg}°`, preset.slopeMaxDeg != null ? `Preset: ${preset.label}` : 'Your setting', OWNERS.slope],
-    ['Slope measured over', opts.slopeMode === 'ldsm' ? 'NASA LDSM, 80 m pixels' : `${opts.slopeMode} m baseline`, opts.slopeMode === 100 ? 'NASA Artemis III wording ("over 100 m")' : 'NASA map as published', OWNERS.slopeBase],
+    ['Slope measured over', opts.slopeMode === 'ldsm' ? 'NASA LDSM, 80 m pixels' : opts.slopeMode === 'nasa5m' ? 'NASA 5 m site map (lander footprint), NASA RMS error sampled' : `${opts.slopeMode} m baseline`, opts.slopeMode === 100 ? 'NASA Artemis III wording ("over 100 m"); NASA 5 m elevation where mapped' : opts.slopeMode === 'nasa5m' ? 'NASA PGDA product 78; outside the mapped boxes falls back to LDSM (shown in results)' : 'NASA map as published', OWNERS.slopeBase],
     ['Thermal limits', opts.thermalLimits ? `avg ≥ ${opts.thermalLimits.minAvgK ?? '–'} K, max ≤ ${opts.thermalLimits.maxSurfaceK ?? '–'} K` : 'none (report only)', opts.thermalLimits ? 'Your setting' : 'NASA publishes no landing-site limit', 'Thermal engineering'],
     ['Sun / Earth "up" means', `centre more than ${opts.marginDeg}° above the terrain`, 'Your setting (centre rule; ESA\'s 50 %-of-disc rule is the 0° case)', OWNERS.margin],
   ];
@@ -357,7 +359,7 @@ function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
       <summary>Assumptions in this run and who owns them ({rows.length})</summary>
       <table className="sim-table"><thead><tr><th>Input</th><th>Value</th><th>Where it comes from</th><th>Owner</th></tr></thead>
         <tbody>{rows.map(([a, b, c, d]) => <tr key={a}><td>{a}</td><td className="mono">{b}</td><td className="small">{c}</td><td className="small">{d}</td></tr>)}</tbody></table>
-      <p className="hint small">Not modelled yet, so a real review would still need: boulders and roughness below 80 m (NASA's 5 m site maps cover only some spots),
+      <p className="hint small">Not modelled yet, so a real review would still need: boulders smaller than NASA's 5 m map pixels (5 m site maps cover 27 boxes; elsewhere the limit is 80 m),
         the descent opportunities set by the Gateway orbit (NASA: one every ~6.5 days), and approach-path lighting (only the Sun at touchdown is checked).</p>
     </details>
   );

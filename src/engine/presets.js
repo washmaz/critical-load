@@ -9,7 +9,7 @@ export const PRESETS = {
     source: { title: 'NASA, Artemis III landing site requirements (NTRS 20250009323)', url: 'https://ntrs.nasa.gov/citations/20250009323' },
     notes: [
       'Landing accuracy "100 m x 100 m" / "within 100 m of a target": default is the strict reading, a 50 m radius (99.7 %); switch to 100 m or your own below.',
-      'Slope under 10 deg over 100 m: measured over a 100 m baseline from NASA LOLA elevation (80 m grid).',
+      'Slope under 10 deg over 100 m: measured over a 100 m baseline from NASA\'s 5 m elevation maps where they exist, else the 80 m map.',
       'Lit for the whole surface stay: any hour with the Sun centre below the terrain horizon (plus margin) fails power.',
       'Direct-to-Earth comms, no relay: relay is switched off; the comms-gap limit is your setting.',
       'Moonwalk (EVA) slopes under 20 deg within 2 km, and within 6 deg of the pole: reported as checks below.',
@@ -17,11 +17,11 @@ export const PRESETS = {
   },
   'esa-lunar-lander': {
     label: 'ESA Lunar Lander study',
-    slopeMaxDeg: 15, slopeMode: 'ldsm', panelHeight: 'esa2', batteryHours: 60, earthMinElevDeg: 2,
+    slopeMaxDeg: 15, slopeMode: 'nasa5m', panelHeight: 'esa2', batteryHours: 60, earthMinElevDeg: 2,
     source: { title: 'De Rosa et al. 2012, Planet. Space Sci. 74, 224 (arXiv:1208.5587)', url: 'https://arxiv.org/abs/1208.5587' },
     notes: [
       'The study defines the landing ellipse as 99.7 % but gives no size: set the ellipse yourself.',
-      'Slope limit 15 deg. The study measures it over ~10 m, finer than any global NASA map: NASA LDSM 80 m pixel slope is used, which smooths out small features.',
+      'Slope limit 15 deg over ~10 m: NASA\'s 5 m site maps (PGDA product 78) are used, with NASA\'s own slope uncertainty sampled for each touchdown; outside the 27 mapped boxes it falls back to the 80 m map (shown in the results).',
       'Solar arrays 2 m above the ground (the study\'s design value).',
       'Darkness up to 60 h; Earth at least 2 deg above the terrain for comms.',
       'Not applied: 50 cm roughness limit and merging dark periods shorter than 10 h.',

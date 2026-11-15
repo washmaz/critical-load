@@ -64,9 +64,23 @@ export function clearanceSeries(lat, lon, elevationM, horizonDeg, bodies, obsHei
  *   antenna height above ground, default 2 m), earthMinElevDeg (optional).
  */
 export function evaluateTouchdown(td, grids, bodies, opts) {
-  const [x, y] = llToXY(td.lat, td.lon), g = grids.slope;
+  const [x, y] = llToXY(td.lat, td.lon), g = grids.slope, hr = grids.hires;
   const mode = opts.slopeMode ?? 'ldsm', hgt = opts.panelHeightM ?? 2;
-  const slope = mode === 'ldsm' ? cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix)) : slopeOverBaseline(x, y, grids.near, mode);
+  const ldsm = () => cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix));
+  let slope, slopeSrc;
+  if (mode === 'nasa5m') {
+    // lander-footprint slope from NASA's 5 m site map, with NASA's own slope uncertainty sampled once per touchdown
+    const s5 = hr ? hr.slope5(x, y) : NaN, err = hr ? hr.slopeErr(x, y) : NaN;
+    if (s5 === s5) {
+      const rnd = mulberry32((opts.seed ?? 1) * 7919 + td.i * 104729), u1 = Math.max(rnd(), 1e-12), u2 = rnd();
+      const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+      slope = Math.max(0, s5 + (err === err ? err : 0) * z); slopeSrc = '5m';
+    } else { slope = ldsm(); slopeSrc = '80m-ldsm'; }
+  } else if (mode === 'ldsm') { slope = ldsm(); slopeSrc = '80m-ldsm'; }
+  else {
+    const s = hr && mode === 100 ? hr.slope100(x, y) : NaN;
+    if (s === s) { slope = s; slopeSrc = '5m-dem'; } else { slope = slopeOverBaseline(x, y, grids.near, mode); slopeSrc = '80m-dem'; }
+  }
   let h;
   try { h = computeHorizon(td.lat, td.lon, grids.near, grids.far, hgt); } catch { return { i: td.i, noData: true }; }
   const s = clearanceSeries(td.lat, td.lon, h.elevationM, h.horizonDeg, bodies, hgt);
@@ -74,7 +88,7 @@ export function evaluateTouchdown(td, grids, bodies, opts) {
   const m = sliceMetrics(s, 0, s.t.length - 1, opts.marginDeg);
   const v = verdict(m, opts);
   return {
-    i: td.i, elevationM: h.elevationM, slopeDeg: Number.isFinite(slope) ? slope : null,
+    i: td.i, elevationM: h.elevationM, slopeDeg: Number.isFinite(slope) ? slope : null, slopeSrc,
     slopeOK: Number.isFinite(slope) && slope <= opts.slopeMaxDeg,
     sunlitPct: m.sunlitPct, longestDarkH: m.longestDarkH, earthPct: m.earthPct, longestCommsGapH: m.longestCommsGapH,
     powerOK: v.powerOK, commsOK: v.commsOK,
@@ -118,11 +132,12 @@ export function summarize(results, psr, thermal = null, limits = null) {
     if (r.safe) safe++;
   }
   const n = ok.length, [lo, hi] = wilson(safe, n);
+  const slopeSources = {}; for (const r of ok) slopeSources[r.slopeSrc] = (slopeSources[r.slopeSrc] || 0) + 1;
   const litAtLandingPct = n ? (100 * ok.filter((r) => r.litAtLanding).length) / n : 0;
   const earthAtLandingPct = n ? (100 * ok.filter((r) => r.earthAtLanding).length) / n : 0;
   const q = (arr, p) => { const a = [...arr].sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))] : null; };
   return {
-    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails, litAtLandingPct, earthAtLandingPct, thermalChecked: useT, thermalNoData,
+    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails, litAtLandingPct, earthAtLandingPct, thermalChecked: useT, thermalNoData, slopeSources,
     sunlitPct: { p5: q(ok.map((r) => r.sunlitPct), 0.05), median: q(ok.map((r) => r.sunlitPct), 0.5), p95: q(ok.map((r) => r.sunlitPct), 0.95) },
     earthPct: { p5: q(ok.map((r) => r.earthPct), 0.05), median: q(ok.map((r) => r.earthPct), 0.5), p95: q(ok.map((r) => r.earthPct), 0.95) },
     longestDarkH: { median: q(ok.map((r) => r.longestDarkH), 0.5), p95: q(ok.map((r) => r.longestDarkH), 0.95) },

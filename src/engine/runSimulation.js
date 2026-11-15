@@ -36,7 +36,7 @@ export async function runLandingSimulation({ target, ellipse, landingMs, opts, n
         if (m.done) { wk.terminate(); if (++finished === nw) resolve(); }
       };
       wk.onerror = (e) => { stop(); reject(new Error(e.message || 'worker failed')); };
-      wk.postMessage({ id: w, center: target, radiusM, touchdowns: share, bodies, opts });
+      wk.postMessage({ id: w, center: target, radiusM, spreadM: spread + 200, touchdowns: share, bodies, opts });
     }
   });
   const summary = summarize(results, psr, facts, opts.thermalLimits || null);

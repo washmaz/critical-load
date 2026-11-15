@@ -124,3 +124,55 @@ export function scienceAt(sci, lat, lon) {
     iceDepthM: ice === 255 || Number.isNaN(ice) ? null : ice === 250 ? 'deeper than 2.87 m' : ice / 50,
   };
 }
+
+/**
+ * NASA 5 m site maps (PGDA product 78) around (lat, lon), where they exist. Returns null if no site map covers the area,
+ * else { covers(x, y), slope5(x, y), slopeErr(x, y), slope100(x, y), site } (map coordinates; NaN where no data).
+ */
+export async function loadHires(lat, lon, radiusM = 500) {
+  const meta = await loadMeta();
+  if (!meta.hires) return null;
+  const [x, y] = llToXY(lat, lon);
+  const maps = [];
+  for (const [site, s] of Object.entries(meta.hires.sites)) {
+    const x1 = s.x0 + s.w * s.pix, y1 = s.y0 - s.h * s.pix;
+    if (x + radiusM < s.x0 || x - radiusM > x1 || y - radiusM > s.y0 || y + radiusM < y1) continue;
+    const fineHave = new Set(s.fine.map(([r, c]) => r * 1000 + c)), coarseHave = new Set(s.coarse.map(([r, c]) => r * 1000 + c));
+    const P = s.pix * T, PC = s.coarsePix * T;
+    const fr0 = Math.max(0, Math.floor((s.y0 - (y + radiusM)) / P)), fr1 = Math.floor((s.y0 - (y - radiusM)) / P);
+    const fc0 = Math.max(0, Math.floor((x - radiusM - s.x0) / P)), fc1 = Math.floor((x + radiusM - s.x0) / P);
+    const cr0 = Math.max(0, Math.floor((s.y0 - (y + radiusM)) / PC)), cr1 = Math.floor((s.y0 - (y - radiusM)) / PC);
+    const cc0 = Math.max(0, Math.floor((x - radiusM - s.x0) / PC)), cc1 = Math.floor((x + radiusM - s.x0) / PC);
+    const fine = new Map(), coarse = new Map(), jobs = [];
+    for (let r = fr0; r <= fr1; r++) for (let c = fc0; c <= fc1; c++) if (fineHave.has(r * 1000 + c))
+      jobs.push(load(`H${site}${r}_${c}`, `${meta.hires.path}/${site}/h${r}_${c}.bin`, (u8) => u8.slice(0, T * T)).then((t) => fine.set(r * 1000 + c, t)));
+    for (let r = cr0; r <= cr1; r++) for (let c = cc0; c <= cc1; c++) if (coarseHave.has(r * 1000 + c))
+      jobs.push(load(`C${site}${r}_${c}`, `${meta.hires.path}/${site}/c${r}_${c}.bin`, (u8) => u8.slice(0, 2 * T * T)).then((t) => coarse.set(r * 1000 + c, t)));
+    await Promise.all(jobs);
+    maps.push({ site, s, fine, coarse });
+  }
+  if (!maps.length) return null;
+  const find = (x, y) => maps.find(({ s }) => x >= s.x0 && x < s.x0 + s.w * s.pix && y <= s.y0 && y > s.y0 - s.h * s.pix);
+  const fineAt = (m, x, y) => {
+    const r = Math.floor((m.s.y0 - y) / m.s.pix), c = Math.floor((x - m.s.x0) / m.s.pix);
+    const t = m.fine.get(((r / T) | 0) * 1000 + ((c / T) | 0)); if (!t) return NaN;
+    const v = t[(r % T) * T + (c % T)]; return v === 255 ? NaN : v / 4;
+  };
+  const coarseCell = (m, r, c, plane) => {
+    if (r < 0 || c < 0 || r >= m.s.coarseH || c >= m.s.coarseW) return NaN;
+    const t = m.coarse.get(((r / T) | 0) * 1000 + ((c / T) | 0)); if (!t) return NaN;
+    const v = t[plane * T * T + (r % T) * T + (c % T)]; return v === 255 ? NaN : v / (plane === 0 ? 20 : 4);
+  };
+  return {
+    sites: maps.map((m) => m.site),
+    covers: (x, y) => !!find(x, y),
+    slope5: (x, y) => { const m = find(x, y); return m ? fineAt(m, x, y) : NaN; },
+    slopeErr: (x, y) => { const m = find(x, y); if (!m) return NaN; return coarseCell(m, Math.floor((m.s.y0 - y) / m.s.coarsePix), Math.floor((x - m.s.x0) / m.s.coarsePix), 0); },
+    slope100: (x, y) => { // bilinear between 20 m block centres
+      const m = find(x, y); if (!m) return NaN;
+      const rf = (m.s.y0 - y) / m.s.coarsePix - 0.5, cf = (x - m.s.x0) / m.s.coarsePix - 0.5, r0 = Math.floor(rf), c0 = Math.floor(cf), fr = rf - r0, fc = cf - c0;
+      const a = coarseCell(m, r0, c0, 1), b = coarseCell(m, r0, c0 + 1, 1), c = coarseCell(m, r0 + 1, c0, 1), d = coarseCell(m, r0 + 1, c0 + 1, 1);
+      return a * (1 - fr) * (1 - fc) + b * (1 - fr) * fc + c * fr * (1 - fc) + d * fr * fc;
+    },
+  };
+}
