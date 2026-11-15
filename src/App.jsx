@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { SITES, DEFAULT_SITE_ID, siteById, validateLatLon, normLon } from './engine/sites.js';
 import { analyzeSite, compareSites, DEFAULTS } from './engine/analysis.js';
 import { withTerrain, terrainFor } from './engine/terrain.js';
+import { pointFacts, inTileCoverage } from './engine/pointData.js';
+import LandingSim from './components/LandingSim.jsx';
 import { scienceFor, SCIENCE_SOURCES, loadCraters, cratersNear } from './engine/science.js';
 import { loadTable, getStatus, horizonsUrl } from './engine/ephemerisStore.js';
 import { skyAt, setEphemerisMode } from './engine/lunarSky.js';
@@ -72,7 +74,22 @@ export default function App() {
   const baseSite = s.siteId === 'custom'
     ? { id: 'custom', name: `Custom (${fmtLat(s.customLat)}, ${fmtLon(s.customLon)})`, group: 'Custom', lat: s.customLat, lon: s.customLon }
     : siteById(s.siteId) || siteById(DEFAULT_SITE_ID);
-  const hasTerrain = !!terrainFor(baseSite.id);
+  const isCustom = s.siteId === 'custom';
+  const covered = inTileCoverage(baseSite.lat, baseSite.lon);
+  const hasTerrain = isCustom ? covered : !!terrainFor(baseSite.id);
+  // Any point inside the NASA 80 S LOLA map: compute terrain horizon, slope and NASA facts on the fly from the data tiles.
+  const [live, setLive] = useState(null);
+  const liveKey = `${baseSite.lat},${baseSite.lon}`;
+  useEffect(() => {
+    if (!isCustom || !covered) { setLive(null); return undefined; }
+    let ok = true;
+    setLive({ key: liveKey, loading: true });
+    pointFacts(baseSite.lat, baseSite.lon)
+      .then((f) => { if (ok) setLive({ key: liveKey, ...f }); })
+      .catch((e) => { if (ok) setLive({ key: liveKey, error: e.message }); });
+    return () => { ok = false; };
+  }, [isCustom, covered, liveKey]);
+  const liveReady = !!(live && live.terrain && live.key === liveKey);
   setEphemerisMode(s.ephem);
   // Load the NASA JPL table for this site (if one exists) and re-run the analysis when it arrives.
   useEffect(() => {
@@ -83,8 +100,8 @@ export default function App() {
   }, [baseSite.lat, baseSite.lon]);
   useEffect(() => { if (s.siteId === 'custom') loadCraters().then(setCraters); }, [s.siteId]);
   const ephemStatus = getStatus({ lat: baseSite.lat, lon: baseSite.lon });
-  const sci = scienceFor(baseSite.id);
-  const site = withTerrain(baseSite, s.terrain);
+  const sci = isCustom ? (liveReady ? live.science : null) : scienceFor(baseSite.id);
+  const site = isCustom ? (s.terrain && liveReady ? { ...baseSite, terrain: live.terrain } : baseSite) : withTerrain(baseSite, s.terrain);
   const terrainOn = !!site.terrain;
 
   const opts = {
@@ -96,7 +113,7 @@ export default function App() {
   // Same question on a smooth Moon, so planners see what terrain changes (only when terrain is on).
   const smooth = useMemo(() => (terrainOn ? analyzeSite(baseSite, s.landing, { ...opts, slipDays: 0 }).result : null), deps);
   const compareRows = useMemo(() => compareSites(
-    (s.siteId === 'custom' ? [...SITES, baseSite] : SITES).map((x) => withTerrain(x, s.terrain)), s.landing, opts),
+    (isCustom ? [...SITES.map((x) => withTerrain(x, s.terrain)), site] : SITES.map((x) => withTerrain(x, s.terrain))), s.landing, opts),
   [...deps, s.siteId]);
 
   const { series, result } = a;
@@ -165,6 +182,10 @@ export default function App() {
             </div>
           )}
           {s.siteId === 'custom' && <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={hasTerrain} />}
+          {isCustom && covered && live && live.key === liveKey && (live.loading
+            ? <p className="hint small">Computing the real terrain horizon here from NASA LOLA tiles…</p>
+            : live.error ? <p className="hint small warn">Couldn't load NASA terrain here: {live.error}</p>
+            : <p className="hint small">Real terrain computed for this exact point from NASA LOLA (80 m) and NASA / Diviner maps.</p>)}
         </div>
         <div className="field">
           <label htmlFor="date">Target landing</label>
@@ -216,7 +237,7 @@ export default function App() {
             <input type="checkbox" checked={s.relay} onChange={(e) => set({ relay: e.target.checked })} />
             Assume a relay satellite (comms always covered)
           </label>
-          <label className="check" title={hasTerrain ? 'Use the real horizon from NASA LOLA elevation data' : 'Terrain data is only available for the south-polar sites (80–90°S)'}>
+          <label className="check" title={hasTerrain ? 'Use the real horizon from NASA LOLA elevation data' : 'Terrain data covers the NASA LOLA south-polar map (about 80–90°S)'}>
             <input type="checkbox" checked={s.terrain} onChange={(e) => set({ terrain: e.target.checked })} />
             Use real terrain (NASA LOLA){!hasTerrain && <span className="muted"> · not available for this site</span>}
           </label>
@@ -277,6 +298,8 @@ export default function App() {
           </div>
         </div>
       </section>
+
+      {covered && <LandingSim site={site} landing={s.landing} appOpts={opts} />}
 
       <section className="panel">
         <h2>Mission timeline</h2>
@@ -344,13 +367,15 @@ function TerrainFacts({ t }) {
   const y = t.yearly;
   return (
     <>
-      <h3 className="group-head">Over a year at this spot <span className="muted small">our model with real NASA LOLA terrain</span></h3>
+      <h3 className="group-head">Over a year at this spot <span className="muted small">our model with real NASA LOLA terrain{t.computedLive ? ', computed live for this point' : ''}</span></h3>
       <div className="terrain-facts">
         <Metric label="Sunlit over a year" value={`${Math.round(y.terrainSunPct)}%`} sub={`Smooth Moon would say ${Math.round(y.smoothSunPct)}%`} tone="sun" />
         <Metric label="Earth in view over a year" value={`${Math.round(y.terrainEarthPct)}%`} sub={`Smooth Moon would say ${Math.round(y.smoothEarthPct)}%`} tone="earth" />
         <Metric label="Ground elevation" value={`${t.elevationM >= 0 ? '+' : '−'}${Math.abs(Math.round(t.elevationM)).toLocaleString()} m`} sub="vs 1737.4 km reference sphere" tone="sun" />
         <Metric label="Slope at site" value={`${t.slope.atSiteDeg}°`} sub={`Steepest within 1 km: ${t.slope.maxWithin1kmDeg}°`} tone={t.slope.atSiteDeg > 10 ? 'bad' : 'earth'} />
-        <Metric label="Nearest ice trap" value={`${t.nearestIceTrap.distanceKm} km`} sub={`Permanently shadowed region, ${t.nearestIceTrap.areaKm2} km²`} tone="earth" />
+        {t.nearestIceTrap
+          ? <Metric label="Nearest ice trap" value={`${t.nearestIceTrap.distanceKm} km`} sub={`Permanently shadowed region, ${t.nearestIceTrap.areaKm2} km²`} tone="earth" />
+          : <Metric label="Nearest permanent shadow" value={t.nearestShadowKm == null ? 'over 15 km' : `${t.nearestShadowKm} km`} sub="NASA LPSR map, 120 m pixels" tone="earth" />}
       </div>
     </>
   );

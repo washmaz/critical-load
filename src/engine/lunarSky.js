@@ -210,3 +210,17 @@ export function sampleSeries(site, startDate, endDate, stepHours = 1) {
   out.tableFraction = fromTable / n;
   return out;
 }
+
+/** Moon-fixed Sun and Earth position vectors (km, from the Moon's centre) every stepHours from startMs to endMs.
+ *  Interleaved xyz Float64Arrays, used by the landing-ellipse simulation (one ephemeris for all touchdowns). */
+export function bodyVectorSeries(startMs, endMs, stepHours = 1) {
+  const stepMs = stepHours * 3600e3, n = Math.max(1, Math.ceil((endMs - startMs) / stepMs)) + 1;
+  const t = new Float64Array(n), sun = new Float64Array(3 * n), earth = new Float64Array(3 * n);
+  const t0 = toAstroTime(new Date(startMs));
+  for (let i = 0; i < n; i++) {
+    const v = bodyVectors(t0.AddDays((i * stepHours) / 24));
+    t[i] = startMs + i * stepMs;
+    sun.set(v.sun, 3 * i); earth.set(v.earth, 3 * i);
+  }
+  return { t, sun, earth, stepMs };
+}

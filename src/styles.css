@@ -215,3 +215,28 @@ button.small { font-size: 13px; padding: 4px 10px; }
   .timebar input[type=range] { min-width: 60px; }
   .jumps { flex-wrap: wrap; }
 }
+
+/* ---- Landing ellipse simulation ---- */
+.sim-controls { display: grid; grid-template-columns: 1.6fr repeat(4, 1fr) auto; gap: 12px; align-items: end; }
+.sim-controls input { width: 100%; }
+.sim-go button.primary { background: var(--nasa-blue); border-color: var(--nasa-blue); font-weight: 600; }
+.sim-go button.primary:hover { background: var(--nasa-blue-shade); }
+.sim-notes { margin: 10px 0 0; padding-left: 18px; color: var(--muted); }
+.sim-progress { position: relative; height: 26px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; margin-top: 12px; overflow: hidden; }
+.sim-progress > div { position: absolute; inset: 0 auto 0 0; background: var(--nasa-blue); opacity: .55; transition: width .2s; }
+.sim-progress > span { position: relative; display: block; text-align: center; line-height: 24px; font-family: var(--font-mono); font-size: 13px; }
+.sim-headline { display: flex; gap: 16px; align-items: center; margin: 16px 0 8px; padding: 12px 14px; border-radius: 12px; border: 1.5px solid; }
+.sim-headline.go { border-color: var(--go); } .sim-headline.caution { border-color: var(--caution); } .sim-headline.nogo { border-color: var(--nogo); }
+.sim-p { font-family: var(--font-mono); font-size: 34px; font-weight: 500; min-width: 120px; text-align: center; }
+.sim-headline.go .sim-p { color: var(--go); } .sim-headline.caution .sim-p { color: var(--caution); } .sim-headline.nogo .sim-p { color: var(--nogo); }
+.sim-p-label { margin: 0; font-weight: 600; }
+.sim-bar { display: grid; grid-template-columns: 1.6fr 1fr 56px; gap: 8px; align-items: center; margin: 6px 0; font-size: 14px; }
+.sim-bar-track { height: 10px; background: var(--panel2); border-radius: 5px; overflow: hidden; }
+.sim-bar-track > span { display: block; height: 100%; background: var(--nogo); }
+.sim-bar-val { font-family: var(--font-mono); text-align: right; }
+.sim-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.sim-table td { padding: 5px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sim-table td:first-child { color: var(--muted); width: 42%; }
+.sim-scatter { margin: 0; } .sim-scatter svg { width: 100%; max-width: 420px; display: block; margin: 0 auto; border-radius: 8px; }
+@media (max-width: 760px) { .sim-controls { grid-template-columns: 1fr 1fr; } .sim-bar { grid-template-columns: 1fr 1fr 48px; } }
+@media print { .sim-controls, .sim-go { display: none; } }
