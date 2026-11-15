@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { PRESETS } from '../engine/presets.js';
+import { PRESETS, ACCURACY, PANEL_HEIGHTS, OWNERS } from '../engine/presets.js';
 import { runLandingSimulation } from '../engine/runSimulation.js';
 import { loadTerrainAround } from '../engine/tiles.js';
 import { cell, llToXY } from '../engine/horizonCore.js';
@@ -27,8 +27,14 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const [mode, setMode] = useState('check');
   const [presetId, setPresetId] = useState('nasa-artemis3');
   const P = PRESETS[presetId];
-  const [ell, setEll] = useState({ semiMajorM: 100, semiMinorM: 100, azimuthDeg: 0 });
+  const [acc, setAcc] = useState('strict50');
+  const [ell, setEll] = useState({ semiMajorM: 50, semiMinorM: 50, azimuthDeg: 0 });
   const [slopeMax, setSlopeMax] = useState(10);
+  const [slopeMode, setSlopeMode] = useState(100);
+  const [panelKey, setPanelKey] = useState('esa2');
+  const [panelCustom, setPanelCustom] = useState(2);
+  const panelM = panelKey === 'custom' ? panelCustom : PANEL_HEIGHTS[panelKey].m;
+  const pickAcc = (k) => { setAcc(k); if (ACCURACY[k].semiMajorM) setEll({ semiMajorM: ACCURACY[k].semiMajorM, semiMinorM: ACCURACY[k].semiMinorM, azimuthDeg: 0 }); };
   const [run, setRun] = useState(null);       // { done, total, t0 }
   const [res, setRes] = useState(null);
   const [err, setErr] = useState(null);
@@ -36,16 +42,18 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
 
   useEffect(() => {
     if (P.slopeMaxDeg != null) setSlopeMax(P.slopeMaxDeg);
-    if (P.semiMajorM != null) setEll({ semiMajorM: P.semiMajorM, semiMinorM: P.semiMinorM, azimuthDeg: P.azimuthDeg ?? 0 });
+    if (P.slopeMode != null) setSlopeMode(P.slopeMode);
+    if (P.accuracy) pickAcc(P.accuracy);
+    if (P.panelHeight) setPanelKey(P.panelHeight);
   }, [presetId]);
   useEffect(() => { setRes(null); setErr(null); }, [site.lat, site.lon, landing]);
 
   const opts = useMemo(() => ({
-    ...appOpts, stepHours: 1, slopeMaxDeg: slopeMax,
+    ...appOpts, stepHours: 1, slopeMaxDeg: slopeMax, slopeMode, panelHeightM: panelM,
     ...(P.batteryHours != null ? { batteryHours: P.batteryHours } : {}),
     ...(P.relay != null ? { relay: P.relay } : {}),
     ...(P.earthMinElevDeg != null ? { earthMinElevDeg: P.earthMinElevDeg } : {}),
-  }), [appOpts, slopeMax, presetId]);
+  }), [appOpts, slopeMax, presetId, slopeMode, panelM]);
 
   const start = async () => {
     setErr(null); setRes(null);
@@ -83,14 +91,29 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
           <select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
             {Object.entries(PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select></div>
+        <div className="field"><label htmlFor="acc">Landing accuracy (99.7 %)</label>
+          <select id="acc" value={acc} onChange={(e) => pickAcc(e.target.value)}>
+            {Object.entries(ACCURACY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select></div>
         <div className="field"><label htmlFor="sma">Ellipse half-length (m)</label>
-          <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) })} /></div>
+          <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /></div>
         <div className="field"><label htmlFor="smi">Ellipse half-width (m)</label>
-          <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) })} /></div>
+          <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /></div>
         <div className="field"><label htmlFor="saz">Long axis points (° from north)</label>
-          <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => setEll({ ...ell, azimuthDeg: +e.target.value })} /></div>
+          <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /></div>
         <div className="field"><label htmlFor="slp">Max slope (°)</label>
           <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /></div>
+        <div className="field"><label htmlFor="slb">Slope measured over</label>
+          <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' ? 'ldsm' : +e.target.value)}>
+            <option value="100">100 m baseline (from NASA LOLA elevation)</option>
+            <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
+          </select></div>
+        <div className="field"><label htmlFor="pnl">Solar arrays / antenna height</label>
+          <select id="pnl" value={panelKey} onChange={(e) => setPanelKey(e.target.value)}>
+            {Object.entries(PANEL_HEIGHTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom height in metres" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
+        </div>
         {mode === 'check' && <div className="field sim-go">
           {run ? <button onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
                : <button className="primary" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
@@ -99,6 +122,7 @@ export default function LandingSim({ site, landing, appOpts, onPickPoint }) {
       {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
       {P.notes.length > 0 && <ul className="sim-notes small">{P.notes.map((n) => <li key={n}>{n}</li>)}
         {P.source && <li>Source: <a href={P.source.url} target="_blank" rel="noreferrer">{P.source.title}</a></li>}</ul>}
+      <Assumptions opts={opts} ell={ell} acc={acc} panelKey={panelKey} panelM={panelM} appOpts={appOpts} preset={P} />
       {mode === 'find' && <FindSpot site={site} landing={landing} opts={opts} ell={ell} preset={P} onPickPoint={onPickPoint} />}
       {mode === 'check' && run && <div className="sim-progress" role="progressbar" aria-valuenow={run.done} aria-valuemax={run.total}>
         <div style={{ width: `${(100 * run.done) / run.total}%` }} />
@@ -113,7 +137,7 @@ export function SimResult({ res }) {
   const s = res.summary, f = s.fails, n = s.n;
   const tone = s.pSafe >= 0.99 ? 'go' : s.pSafe >= 0.9 ? 'caution' : 'nogo';
   const bars = [
-    ['Too steep', f.slope, `NASA slope over ${res.opts.slopeMaxDeg}°`],
+    ['Too steep', f.slope, `slope over ${res.opts.slopeMaxDeg}° (${res.opts.slopeMode === 'ldsm' ? 'NASA LDSM 80 m' : `${res.opts.slopeMode} m baseline, NASA LOLA`})`],
     ['Permanent shadow', f.shadow, 'NASA LPSR: never sunlit'],
     ['Not enough power', f.power, res.opts.batteryHours === 0 ? 'any dark hour during the stay' : `dark longer than ${res.opts.batteryHours} h`],
     ['Comms gap too long', f.comms, res.opts.relay ? 'relay assumed' : `Earth hidden longer than ${res.opts.commsGapHours} h`],
@@ -124,7 +148,7 @@ export function SimResult({ res }) {
         <div className="sim-p">{pct(s.pSafe)}</div>
         <div>
           <p className="sim-p-label">of touchdowns are safe and meet every requirement</p>
-          <p className="muted small">95 % confidence {pct(s.ci95[0])}–{pct(s.ci95[1])} (Wilson) · {n} touchdowns{s.noData ? ` (+${s.noData} with no NASA data)` : ''} · {res.workers} parallel workers · {res.seconds.toFixed(0)} s</p>
+          <p className="muted small">Ellipse {res.ell.semiMajorM} × {res.ell.semiMinorM} m · arrays at {res.opts.panelHeightM} m · 95 % confidence {pct(s.ci95[0])}–{pct(s.ci95[1])} (Wilson) · {n} touchdowns{s.noData ? ` (+${s.noData} with no NASA data)` : ''} · {res.workers} parallel workers · {res.seconds.toFixed(0)} s</p>
         </div>
       </div>
       <div className="grid-2 sim-grid">
@@ -142,8 +166,9 @@ export function SimResult({ res }) {
             <tr><td>Sunlit this mission</td><td>{s.sunlitPct.p5.toFixed(0)}% – {s.sunlitPct.p95.toFixed(0)}% <span className="muted small">(5th–95th pct, median {s.sunlitPct.median.toFixed(0)}%)</span></td></tr>
             <tr><td>Longest dark</td><td>median {fmtH(s.longestDarkH.median)}, worst 5 % {fmtH(s.longestDarkH.p95)}</td></tr>
             <tr><td>Longest comms gap</td><td>median {fmtH(s.longestCommsGapH.median)}, worst 5 % {fmtH(s.longestCommsGapH.p95)}</td></tr>
-            <tr><td>NASA slope</td><td>median {s.slopeDeg.median.toFixed(1)}°, worst 5 % {s.slopeDeg.p95.toFixed(1)}°</td></tr>
+            <tr><td>Slope ({res.opts.slopeMode === 'ldsm' ? 'NASA LDSM' : `${res.opts.slopeMode} m baseline`})</td><td>median {s.slopeDeg.median.toFixed(1)}°, worst 5 % {s.slopeDeg.p95.toFixed(1)}°</td></tr>
             {res.thermal.tempAvgK && <tr><td>Ground temperature (Diviner)</td><td>avg {Math.round(res.thermal.tempAvgK.min)}–{Math.round(res.thermal.tempAvgK.max)} K, yearly max up to {Math.round(res.thermal.tempMaxK.max)} K <span className="muted small">(report only)</span></td></tr>}
+            <tr><td>Sun up at touchdown <span className="muted small">(NASA: approach lighting is beneficial)</span></td><td>{s.litAtLandingPct.toFixed(0)}% of touchdowns · Earth up {s.earthAtLandingPct.toFixed(0)}%</td></tr>
             <tr><td>Water ice within 1 m (Diviner)</td><td>{res.thermal.iceWithin1mPct.toFixed(0)}% of touchdowns</td></tr>
             {res.checks.map((c) => <tr key={c.label}><td>{c.label}</td><td>{c.ok === true ? '✓ ' : c.ok === false ? '✗ ' : ''}{c.value}</td></tr>)}
           </tbody></table>
@@ -202,7 +227,7 @@ function FindSpot({ site, landing, opts, ell, preset, onPickPoint }) {
       const R = radiusKm * 1000;
       const sci = await loadScienceAround(site.lat, site.lon, R + ICE_RANGE_M + 500);
       const g = await loadTerrainAround(site.lat, site.lon, R + ell.semiMajorM + 1000);
-      const scr = screenCandidates({ center: site, radiusM: R, sci, slope: g.slope, ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: w, keep: 30 });
+      const scr = screenCandidates({ center: site, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode ?? 'ldsm', ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: w, keep: 30 });
       if (!scr.candidates.length) { setOut({ scr, ranked: [], seconds: (performance.now() - t0) / 1000 }); setSt(null); return; }
       const todo = scr.candidates.slice(0, nVerify), items = [];
       for (let i = 0; i < todo.length; i++) {
@@ -256,12 +281,13 @@ export function FindResult({ out, site, radiusKm, onPickPoint }) {
       {!ranked.length ? <p className="error">No ground in this radius passes NASA's Sun / Earth filters. Try a larger radius or another centre.</p> : (
         <div className="grid-2 sim-grid">
           <table className="sim-table find-table">
-            <thead><tr><th>#</th><th>Where</th><th>P(safe)</th><th>Sunlit / Earth this mission</th><th>Ice</th><th>Score</th><th /></tr></thead>
+            <thead><tr><th>#</th><th>Stage 1 #</th><th>Where</th><th>P(safe)</th><th>Sunlit / Earth this mission</th><th>Ice</th><th>Score</th><th /></tr></thead>
             <tbody>{ranked.map((r, i) => {
               const s = r.sim.summary, c = r.cand;
               return (
                 <tr key={i}>
                   <td><strong>{i + 1}</strong></td>
+                  <td className="mono">{r.rank0}</td>
                   <td className="mono small">{Math.abs(c.lat).toFixed(4)}°S {Math.abs(c.lon).toFixed(4)}°{c.lon < 0 ? 'W' : 'E'}<br /><span className="muted">NASA long-term: Sun {c.sunPct}% · Earth {c.earthPct}%</span></td>
                   <td className="mono">{(100 * s.pSafe).toFixed(1)}%<br /><span className="muted small">{(100 * s.ci95[0]).toFixed(1)}–{(100 * s.ci95[1]).toFixed(1)}%</span></td>
                   <td className="mono">{s.sunlitPct.median.toFixed(0)}% / {s.earthPct.median.toFixed(0)}%<br /><span className="muted small">dark ≤ {Math.round(s.longestDarkH.median)} h</span></td>
@@ -275,7 +301,7 @@ export function FindResult({ out, site, radiusKm, onPickPoint }) {
           <FindMap site={site} radiusKm={radiusKm} scr={scr} ranked={ranked} />
         </div>
       )}
-      <p className="hint small">Stage 1 uses NASA's long-term averages; stage 2 uses your mission dates, so the order can change between stages. "Load" opens a candidate as your site for the full analysis.</p>
+      <p className="hint small">Why the order can change: stage 1 ranks by NASA's 18.6-year averages (how often a spot is lit or sees Earth in general), stage 2 by your exact mission dates. A spot that is sunny on average can still have a long dark spell during your particular 14 days, so the final rank (stage 2) is the one to use. "Load" opens a candidate as your site.</p>
     </div>
   );
 }
@@ -300,5 +326,29 @@ function FindMap({ site, radiusKm, scr, ranked }) {
       </svg>
       <figcaption className="muted small">+ = your current site. Grey = best-scoring screened spots (stage 1). Numbered = fully checked, coloured by P(safe): green ≥ 99%, amber ≥ 90%, red below.</figcaption>
     </figure>
+  );
+}
+
+function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
+  const rows = [
+    ['Landing date and time', 'set at the top of the page', 'Your setting', OWNERS.dates],
+    ['Surface stay', `${appOpts.missionDays} days`, 'Your setting: NASA\'s Artemis III overview gives no stay length', OWNERS.stay],
+    ['Battery: longest dark the lander survives', opts.batteryHours === 0 ? '0 h (lit the whole stay)' : `${opts.batteryHours} h`, preset.batteryHours != null ? `Preset: ${preset.label}` : 'Your setting', OWNERS.battery],
+    ['Solar arrays / antenna height', `${panelM} m`, panelKey === 'custom' ? 'Your setting' : PANEL_HEIGHTS[panelKey].source.title, OWNERS.panel],
+    ['Longest comms gap allowed', opts.relay ? 'relay assumed' : `${opts.commsGapHours} h`, preset.relay != null ? `Preset: ${preset.label} (no relay)` : 'Your setting', OWNERS.comms],
+    ['Earth must clear the terrain by', `${opts.earthMinElevDeg ?? opts.marginDeg}°`, opts.earthMinElevDeg != null ? 'ESA study' : 'Uncertainty margin (your setting)', OWNERS.comms],
+    ['Landing accuracy (99.7 % ellipse)', `${ell.semiMajorM} m × ${ell.semiMinorM} m half-axes`, ACCURACY[acc].label, OWNERS.accuracy],
+    ['Slope limit', `${opts.slopeMaxDeg}°`, preset.slopeMaxDeg != null ? `Preset: ${preset.label}` : 'Your setting', OWNERS.slope],
+    ['Slope measured over', opts.slopeMode === 'ldsm' ? 'NASA LDSM, 80 m pixels' : `${opts.slopeMode} m baseline`, opts.slopeMode === 100 ? 'NASA Artemis III wording ("over 100 m")' : 'NASA map as published', OWNERS.slopeBase],
+    ['Sun / Earth "up" means', `centre more than ${opts.marginDeg}° above the terrain`, 'Your setting (centre rule; ESA\'s 50 %-of-disc rule is the 0° case)', OWNERS.margin],
+  ];
+  return (
+    <details className="assumptions">
+      <summary>Assumptions in this run and who owns them ({rows.length})</summary>
+      <table className="sim-table"><thead><tr><th>Input</th><th>Value</th><th>Where it comes from</th><th>Owner</th></tr></thead>
+        <tbody>{rows.map(([a, b, c, d]) => <tr key={a}><td>{a}</td><td className="mono">{b}</td><td className="small">{c}</td><td className="small">{d}</td></tr>)}</tbody></table>
+      <p className="hint small">Not modelled yet, so a real review would still need: boulders and roughness below 80 m (NASA's 5 m site maps cover only some spots),
+        the descent opportunities set by the Gateway orbit (NASA: one every ~6.5 days), and approach-path lighting (only the Sun at touchdown is checked).</p>
+    </details>
   );
 }

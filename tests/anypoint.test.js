@@ -6,7 +6,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { setTileFetcher, loadTerrainAround, loadScienceAround, scienceAt } from '../src/engine/tiles.js';
 import SCI from '../src/data/site_science.json' with { type: 'json' };
-import { computeHorizon, slopeStats } from '../src/engine/horizonCore.js';
+import { computeHorizon, slopeStats, slopeOverBaseline, llToXY } from '../src/engine/horizonCore.js';
 import { SITES } from '../src/engine/sites.js';
 import TERR from '../src/data/site_terrain.json' with { type: 'json' };
 
@@ -64,4 +64,17 @@ test('pointFacts at a curated site matches the pre-computed yearly numbers', { s
     assert.ok(Math.abs(y.terrainEarthPct - r.terrainEarthPct) <= 0.5, `${id} terrain earth`);
     assert.ok(Math.abs(y.terrainLongestDarkH - r.terrainLongestDarkH) <= 4, `${id} longest dark ${y.terrainLongestDarkH} vs ${r.terrainLongestDarkH}`);
   }
+});
+
+test('100 m-baseline slope from LOLA elevation is consistent with NASA LDSM (80 m) at the polar sites', { skip: !have && 'no tiles' }, async () => {
+  const rows = [];
+  for (const id of Object.keys(TERR.sites)) {
+    const s = SITES.find((x) => x.id === id), g = await loadTerrainAround(s.lat, s.lon, 2000);
+    const [x, y] = llToXY(s.lat, s.lon);
+    const b100 = slopeOverBaseline(x, y, g.near, 100), b80 = slopeOverBaseline(x, y, g.near, 80);
+    rows.push({ id, ldsmAtSite: TERR.sites[id].slope.atSiteDeg, b80: +b80.toFixed(1), b100: +b100.toFixed(1) });
+    assert.ok(Number.isFinite(b100) && b100 >= 0 && b100 < 45);
+    assert.ok(Math.abs(b80 - TERR.sites[id].slope.atSiteDeg) < 4, `${id}: 80 m baseline ${b80} vs LDSM 3x3 mean ${TERR.sites[id].slope.atSiteDeg}`);
+  }
+  console.log(JSON.stringify(rows));
 });

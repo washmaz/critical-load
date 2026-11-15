@@ -3,21 +3,19 @@
 // applies the hard filters (Sun >= 5 %, Earth >= 25 % on NASA's 18.6-year averages, not permanently shadowed),
 // scores what is left with the planner's weights, and keeps well-separated candidates. Stage 2 (runSimulation.js)
 // then runs the full 1,000-touchdown check on the best few for the actual mission dates.
-import { R_M, llToXY, xyToLL, cell } from './horizonCore.js';
+import { llToXY, xyToLL, cell, localFrame, slopeOverBaseline } from './horizonCore.js';
 
 export const DEFAULT_WEIGHTS = { safety: 5, power: 3, comms: 3, resources: 1 };
 export const HARD_FILTERS = { minSunPct: 5, minEarthPct: 25 };
 
-/** Local east / north unit vectors and map scale factor of the polar stereographic grid at (x, y). */
-export function localFrame(x, y) {
-  const rho = Math.hypot(x, y), lam = Math.atan2(x, y);
-  const lat = 2 * Math.atan(rho / (2 * R_M)) - Math.PI / 2;
-  const k = 1 / Math.cos(Math.PI / 4 + lat / 2) ** 2; // map metres per ground metre
-  return { east: [Math.cos(lam), -Math.sin(lam)], north: rho > 0 ? [x / rho, y / rho] : [0, 1], k };
-}
+export { localFrame };
 
-/** Share of NASA 80 m slope pixels inside the landing ellipse centred at (x, y) with slope <= limit. */
-export function ellipseSlopeShare(x, y, slope, { semiMajorM: a, semiMinorM: b, azimuthDeg = 0 }, limitDeg) {
+/**
+ * Share of 80 m pixels inside the landing ellipse centred at (x, y) whose slope is <= limit.
+ * slopeMode 'ldsm' = NASA LDSM value of the pixel; a number (e.g. 100) = slope over that baseline from LOLA elevation (needs near).
+ */
+export function ellipseSlopeShare(x, y, slope, { semiMajorM: a, semiMinorM: b, azimuthDeg = 0 }, limitDeg, slopeMode = 'ldsm', near = null) {
+  const at = (r, c) => (slopeMode === 'ldsm' ? cell(slope, r, c) : slopeOverBaseline(slope.x0 + (c + 0.5) * slope.pix, slope.y0 - (r + 0.5) * slope.pix, near, slopeMode));
   const { east, north, k } = localFrame(x, y), th = (azimuthDeg * Math.PI) / 180, st = Math.sin(th), ct = Math.cos(th);
   const reach = a * k + slope.pix;
   const r0 = Math.floor((slope.y0 - (y + reach)) / slope.pix), r1 = Math.floor((slope.y0 - (y - reach)) / slope.pix);
@@ -28,11 +26,11 @@ export function ellipseSlopeShare(x, y, slope, { semiMajorM: a, semiMinorM: b, a
     const e = (px * east[0] + py * east[1]) / k, nn = (px * north[0] + py * north[1]) / k;
     const u = e * st + nn * ct, v = e * ct - nn * st;
     if ((u / a) ** 2 + (v / b) ** 2 > 1) continue;
-    const s = cell(slope, r, c); if (!(s === s)) continue;
+    const s = at(r, c); if (!(s === s)) continue;
     n++; if (s <= limitDeg) ok++; if (s > worst) worst = s;
   }
   if (!n) { // ellipse smaller than one pixel: use the pixel the target sits in
-    const s = cell(slope, Math.floor((slope.y0 - y) / slope.pix), Math.floor((x - slope.x0) / slope.pix));
+    const s = slopeMode === 'ldsm' ? cell(slope, Math.floor((slope.y0 - y) / slope.pix), Math.floor((x - slope.x0) / slope.pix)) : slopeOverBaseline(x, y, near, slopeMode);
     if (!(s === s)) return null;
     return { share: s <= limitDeg ? 1 : 0, pixels: 1, worstDeg: s };
   }
@@ -65,7 +63,7 @@ export const ICE_RANGE_M = 5000; // ice within 1 m of the surface counts fully a
  * Stage 1 screen. sci = tiles.loadScienceAround(...) planes, slope = 80 m slope grid.
  * Returns { candidates (best first, at least minSepM apart), screened, rejected: {psr, sun, earth, noData} }.
  */
-export function screenCandidates({ center, radiusM, sci, slope, ellipse, slopeMaxDeg, weights = DEFAULT_WEIGHTS, keep = 30, minSepM }) {
+export function screenCandidates({ center, radiusM, sci, slope, near = null, slopeMode = 'ldsm', ellipse, slopeMaxDeg, weights = DEFAULT_WEIGHTS, keep = 30, minSepM }) {
   const g = sci.sun, [cx, cy] = llToXY(center.lat, center.lon);
   const pad = Math.ceil(ICE_RANGE_M / g.pix);
   const k0 = localFrame(cx, cy).k, R = Math.ceil((radiusM * k0) / g.pix);
@@ -84,7 +82,7 @@ export function screenCandidates({ center, radiusM, sci, slope, ellipse, slopeMa
     const sunPct = s / 2, earthPct = e / 2;
     if (sunPct < HARD_FILTERS.minSunPct) { rej.sun++; continue; }
     if (earthPct < HARD_FILTERS.minEarthPct) { rej.earth++; continue; }
-    const sl = ellipseSlopeShare(x, y, slope, ellipse, slopeMaxDeg);
+    const sl = ellipseSlopeShare(x, y, slope, ellipse, slopeMaxDeg, slopeMode, near);
     if (!sl) { rej.noData++; continue; }
     const iceM = ice[(r - r0) * w + (c - c0)], iceProx = Math.max(0, 1 - iceM / ICE_RANGE_M);
     const score = (W.safety * sl.share + W.power * sunPct / 100 + W.comms * earthPct / 100 + W.resources * iceProx) / wsum;

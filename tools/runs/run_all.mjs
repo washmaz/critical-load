@@ -16,8 +16,9 @@ const [TILES, OUT] = process.argv.slice(2);
 setTileFetcher(async (p) => { const b = readFileSync(TILES + '/' + p); return b[0] === 0x1f && b[1] === 0x8b ? gunzipSync(b) : b; });
 const P = PRESETS['nasa-artemis3'];
 const LANDING = Date.parse('2026-11-14T21:00:00Z'), MISSION_D = 14, N = 1000;
-const opts = { ...DEFAULTS, missionDays: MISSION_D, slipDays: 0, slopeMaxDeg: P.slopeMaxDeg, batteryHours: P.batteryHours, relay: P.relay };
-const ell = { semiMajorM: P.semiMajorM, semiMinorM: P.semiMinorM, azimuthDeg: 0 };
+import { ACCURACY, PANEL_HEIGHTS } from '../../src/engine/presets.js';
+const opts = { ...DEFAULTS, missionDays: MISSION_D, slipDays: 0, slopeMaxDeg: P.slopeMaxDeg, slopeMode: P.slopeMode, panelHeightM: PANEL_HEIGHTS.esa2.m, batteryHours: P.batteryHours, relay: P.relay };
+const ell = { semiMajorM: ACCURACY[P.accuracy].semiMajorM, semiMinorM: ACCURACY[P.accuracy].semiMinorM, azimuthDeg: 0 };
 const bodies = bodyVectorSeries(LANDING, LANDING + MISSION_D * 86400e3, 1);
 const meta = { landing: new Date(LANDING).toISOString(), missionDays: MISSION_D, touchdowns: N, seed: 1, preset: 'NASA Artemis III', opts, ellipse: ell,
   ephemeris: 'astronomy-engine (live), hourly', engine: 'src/engine (same code as the website)' };
@@ -34,7 +35,7 @@ async function simulate(lat, lon) {
 }
 
 const out = { meta, sites: [], searches: [] };
-const save = () => writeFileSync(OUT + '/runs.json', JSON.stringify(out, null, 1));
+const save = () => writeFileSync(OUT + '/runs-v2.json', JSON.stringify(out, null, 1));
 const polar = SITES.filter((s) => s.lat < -80);
 for (const s of polar) {
   const r = await simulate(s.lat, s.lon);
@@ -46,7 +47,7 @@ for (const id of ['connecting-ridge', 'shackleton-rim', 'nobile-rim-1']) {
   const s = SITES.find((x) => x.id === id), t0 = Date.now(), R = 5000;
   const sci = await loadScienceAround(s.lat, s.lon, R + ICE_RANGE_M + 500);
   const g = await loadTerrainAround(s.lat, s.lon, R + 1500);
-  const scr = screenCandidates({ center: s, radiusM: R, sci, slope: g.slope, ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: DEFAULT_WEIGHTS, keep: 30 });
+  const scr = screenCandidates({ center: s, radiusM: R, sci, slope: g.slope, near: g.near, slopeMode: opts.slopeMode, ellipse: ell, slopeMaxDeg: opts.slopeMaxDeg, weights: DEFAULT_WEIGHTS, keep: 30 });
   const items = [];
   for (const cand of scr.candidates.slice(0, 3)) items.push({ cand, sim: await simulate(cand.lat, cand.lon) });
   const ranked = rankVerified(items, DEFAULT_WEIGHTS, (it) => nearest(sci, 'ice', it.cand.lat, it.cand.lon, 5, (v) => v !== 250 && v <= 50));

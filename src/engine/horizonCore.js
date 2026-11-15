@@ -54,15 +54,16 @@ export function bilinear(g, x, y) {
 
 /**
  * Terrain horizon at (lat, lon). near = 80 m grid accessor, far = 320 m grid accessor.
+ * obsHeightM: height of the solar arrays / antenna above the ground (default 2 m, the ESA lander-study design value).
  * Returns { elevationM, horizonDeg: Float32Array(720) }.
  */
-export function computeHorizon(latDeg, lonDeg, near, far) {
+export function computeHorizon(latDeg, lonDeg, near, far, obsHeightM = OBS_H) {
   const [x0, y0] = llToXY(latDeg, lonDeg);
   const h0 = bilinear(near, x0, y0);
   if (!Number.isFinite(h0)) throw new Error('No LOLA elevation at this point (outside the 80 S map or a data gap).');
   const lat0 = (latDeg * Math.PI) / 180, lon0 = (lonDeg * Math.PI) / 180;
   const sl0 = Math.sin(lat0), cl0 = Math.cos(lat0), so0 = Math.sin(lon0), co0 = Math.cos(lon0);
-  const rO = R_M + h0 + OBS_H;
+  const rO = R_M + h0 + obsHeightM;
   const Ox = rO * cl0 * co0, Oy = rO * cl0 * so0, Oz = rO * sl0;
   // local east, north, up
   const ex = -so0, ey = co0, ez = 0;
@@ -117,4 +118,26 @@ export function horizonAtDeg(hz, az) {
   const x = ((((az % 360) + 360) % 360) - 0.25) / 0.5;
   const i0 = Math.floor(x), f = x - i0, n = hz.length;
   return hz[((i0 % n) + n) % n] * (1 - f) + hz[(((i0 + 1) % n) + n) % n] * f;
+}
+
+/** Local east / north unit vectors (map frame) and polar-stereographic scale factor k (map metres per ground metre) at (x, y). */
+export function localFrame(x, y) {
+  const rho = Math.hypot(x, y), lam = Math.atan2(x, y);
+  const lat = 2 * Math.atan(rho / (2 * R_M)) - Math.PI / 2;
+  const k = 1 / Math.cos(Math.PI / 4 + lat / 2) ** 2;
+  return { east: [Math.cos(lam), -Math.sin(lam)], north: rho > 0 ? [x / rho, y / rho] : [0, 1], k };
+}
+
+/**
+ * Surface slope (deg) over a given ground baseline, from the LOLA elevation grid: elevations sampled (bilinear) at
+ * +-baseline/2 east and north of the point, slope = atan(|grad h|). This matches requirements written "over 100 m",
+ * where NASA's LDSM product is per 80 m pixel.
+ */
+export function slopeOverBaseline(x, y, near, baselineM = 100) {
+  const f = localFrame(x, y), h = (baselineM / 2) * f.k;
+  const z = (de, dn) => bilinear(near, x + h * (de * f.east[0] + dn * f.north[0]), y + h * (de * f.east[1] + dn * f.north[1]));
+  const ze = z(1, 0), zw = z(-1, 0), zn = z(0, 1), zs = z(0, -1);
+  if (!(ze === ze && zw === zw && zn === zn && zs === zs)) return NaN;
+  const gx = (ze - zw) / baselineM, gy = (zn - zs) / baselineM;
+  return (Math.atan(Math.hypot(gx, gy)) * 180) / Math.PI;
 }

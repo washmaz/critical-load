@@ -2,7 +2,7 @@
 // Each simulated touchdown gets its OWN exact terrain horizon (horizonCore.computeHorizon), its own local vertical,
 // NASA slope (LDSM 80 m) and NASA permanent-shadow flag (LPSR 120 m), and is then judged with the app's normal
 // power / comms rules (analysis.sliceMetrics + verdict) over the mission window.
-import { R_M, computeHorizon, horizonAtDeg, cell, llToXY } from './horizonCore.js';
+import { R_M, computeHorizon, horizonAtDeg, cell, llToXY, slopeOverBaseline } from './horizonCore.js';
 import { sliceMetrics, verdict } from './analysis.js';
 
 /** A 2-D normal puts 99.7 % of samples inside the ellipse whose semi-axes are K997 standard deviations. */
@@ -58,13 +58,18 @@ export function clearanceSeries(lat, lon, elevationM, horizonDeg, bodies, obsHei
   return { t: bodies.t, sunClear, earthClear };
 }
 
-/** Evaluate one touchdown. grids from tiles.loadTerrainAround; opts = analysis opts + { slopeMaxDeg, earthMinElevDeg }. */
+/**
+ * Evaluate one touchdown. grids from tiles.loadTerrainAround; opts = analysis opts +
+ *   slopeMaxDeg, slopeMode ('ldsm' = NASA LDSM 80 m pixel, or a baseline in metres such as 100), panelHeightM (solar arrays /
+ *   antenna height above ground, default 2 m), earthMinElevDeg (optional).
+ */
 export function evaluateTouchdown(td, grids, bodies, opts) {
   const [x, y] = llToXY(td.lat, td.lon), g = grids.slope;
-  const slope = cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix));
+  const mode = opts.slopeMode ?? 'ldsm', hgt = opts.panelHeightM ?? 2;
+  const slope = mode === 'ldsm' ? cell(g, Math.floor((g.y0 - y) / g.pix), Math.floor((x - g.x0) / g.pix)) : slopeOverBaseline(x, y, grids.near, mode);
   let h;
-  try { h = computeHorizon(td.lat, td.lon, grids.near, grids.far); } catch { return { i: td.i, noData: true }; }
-  const s = clearanceSeries(td.lat, td.lon, h.elevationM, h.horizonDeg, bodies);
+  try { h = computeHorizon(td.lat, td.lon, grids.near, grids.far, hgt); } catch { return { i: td.i, noData: true }; }
+  const s = clearanceSeries(td.lat, td.lon, h.elevationM, h.horizonDeg, bodies, hgt);
   if (opts.earthMinElevDeg != null) { const shift = opts.earthMinElevDeg - opts.marginDeg; for (let k = 0; k < s.earthClear.length; k++) s.earthClear[k] -= shift; }
   const m = sliceMetrics(s, 0, s.t.length - 1, opts.marginDeg);
   const v = verdict(m, opts);
@@ -73,6 +78,7 @@ export function evaluateTouchdown(td, grids, bodies, opts) {
     slopeOK: Number.isFinite(slope) && slope <= opts.slopeMaxDeg,
     sunlitPct: m.sunlitPct, longestDarkH: m.longestDarkH, earthPct: m.earthPct, longestCommsGapH: m.longestCommsGapH,
     powerOK: v.powerOK, commsOK: v.commsOK,
+    litAtLanding: s.sunClear[0] > opts.marginDeg, earthAtLanding: s.earthClear[0] > opts.marginDeg,
   };
 }
 
@@ -99,9 +105,11 @@ export function summarize(results, psr) {
     if (r.safe) safe++;
   }
   const n = ok.length, [lo, hi] = wilson(safe, n);
+  const litAtLandingPct = n ? (100 * ok.filter((r) => r.litAtLanding).length) / n : 0;
+  const earthAtLandingPct = n ? (100 * ok.filter((r) => r.earthAtLanding).length) / n : 0;
   const q = (arr, p) => { const a = [...arr].sort((x, y) => x - y); return a.length ? a[Math.min(a.length - 1, Math.floor(p * (a.length - 1)))] : null; };
   return {
-    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails,
+    n, noData: results.length - n, safe, pSafe: n ? safe / n : 0, ci95: [lo, hi], fails, litAtLandingPct, earthAtLandingPct,
     sunlitPct: { p5: q(ok.map((r) => r.sunlitPct), 0.05), median: q(ok.map((r) => r.sunlitPct), 0.5), p95: q(ok.map((r) => r.sunlitPct), 0.95) },
     earthPct: { p5: q(ok.map((r) => r.earthPct), 0.05), median: q(ok.map((r) => r.earthPct), 0.5), p95: q(ok.map((r) => r.earthPct), 0.95) },
     longestDarkH: { median: q(ok.map((r) => r.longestDarkH), 0.5), p95: q(ok.map((r) => r.longestDarkH), 0.95) },
