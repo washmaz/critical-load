@@ -44,6 +44,48 @@ _Link (public, no login): 30-second video with English subtitles._
 - What we hope to achieve: help students and educators understand why the south pole is hard, and give early-stage planners a quick first filter before detailed analysis in tools like Moon Trek or Lunar QuickMap.
 - Stack: Vite + React (JS), client-side only; astronomy-engine; Python pipelines (numpy, pandas, rasterio, shapely, Skyfield); SVG sky dome; three.js 3D Moon globe; deployed on Vercel.
 
+## How it works: the workflow, the maths, the decisions and the limits (one page)
+
+Without the app, a planner checking one landing site and date pulls ephemerides, loads terrain maps into expert tools, works out the horizon, steps through the whole stay hour by hour, checks slope and shadow, and repeats all of it for every site, date and launch slip. The app chains those steps automatically and shows the decision and the reason. Full detail and validation for every step: [METHOD.md](METHOD.md).
+
+**Inputs:** site (preset, named place or coordinates), date and time (UTC), surface stay (7 days default, 14 days, or custom), solar-array/antenna height (2 m default, from the ESA lander study; 1.2 m; NASA VSAT 9.75 m; or custom), landing accuracy (50 m radius default, 100 m, or custom), and visibility margin (0.5° default).
+
+| # | Question the app answers | What it computes (maths / physics) | NASA data (link) | Decision rule |
+| --- | --- | --- | --- | --- |
+| 1 | Where are the Sun and Earth? | Sun and Earth vectors in the Moon-fixed frame → local east-north-up at the site (mean radius 1,737.4 km, so Earth's parallax is included) → elevation and azimuth | [JPL DE421](https://naif.jpl.nasa.gov/pub/naif/generic_kernels/) (precomputed tables), live astronomy-engine fallback (IAU 2015 Moon orientation), checked against [JPL Horizons](https://ssd-api.jpl.nasa.gov/doc/horizons.html) | (input to steps 2–3) |
+| 2 | What does the terrain hide? | Horizon in 720 directions (every 0.5°): a ray marched over the curved Moon from 240 m out (40 m steps to 4 km, then ×1.01 each step); horizon angle = max of atan2(height above observer, distance), with the observer at the array height | [NASA LRO LOLA 80 m south-pole elevation + 320 m far field](https://pgda.gsfc.nasa.gov/products/90) | Sun or Earth counts as "up" only when its centre clears the terrain horizon by more than the margin (0.5°) |
+| 3 | Power and radio over the whole stay? | Hourly steps, with exact sunrise/sunset/Earthrise/Earthset times interpolated; longest dark stretch and longest comms gap | Steps 1–2 | Power OK if longest dark ≤ battery hours (Artemis III preset: 0 h = lit the whole stay). Comms OK if longest gap ≤ allowed gap (48 h, our setting; no relay, per Artemis III) |
+| 4 | Is the ground safe to land on? | Slope over a 100 m baseline (NASA's wording) from NASA 5 m site maps where they exist, else LOLA 80 m; permanent-shadow lookup | [NASA 5 m site DEMs](https://pgda.gsfc.nasa.gov/products/78), [LOLA slope + permanent shadow](https://pgda.gsfc.nasa.gov/products/90), [PGDA polar illumination](https://pgda.gsfc.nasa.gov/products/69) | Slope < 10° over 100 m; touchdown in permanent shadow fails; within 6° of the pole (Artemis III, [NTRS 20250009323](https://ntrs.nasa.gov/citations/20250009323)) |
+| 5 | What if we land a bit off target? | 1,000 touchdowns from a 2-D normal scatter; the ellipse holds 99.7 %, so each half-axis = 3.41 σ (√(−2 ln 0.003)); every touchdown gets its own horizon, slope, shadow, power and comms check; fixed seed | Steps 1–4 | P(safe) with a Wilson 95 % interval, plus which rule failed and how often |
+| 6 | How hot or cold is it? | Annual average and maximum temperature, ice-stability depth for the site's 120 m cell | NASA LRO Diviner Polar Resource Product (PDS Geosciences Node) | Reported only: NASA publishes no landing-site thermal limit, so none applies unless the thermal team enters one |
+| 7 | Is there a better spot nearby? | Stage 1: screen every NASA 120 m pixel within the radius, then score. Stage 2: run 1,000 touchdowns on the best 1–5 for the real dates | [PGDA polar illumination (18.6-year average)](https://pgda.gsfc.nasa.gov/products/69) + steps 1–5 | Stage 1 hard filters: Earth in view ≥ 25 %, Sun ≥ 5 %, not permanently shadowed, within 6° of the pole. Stage 2 decides the final ranking |
+| 8 | Which site wins for the whole team? | Each team (planning, power, comms, landing, thermal, science) sets hard limits and a weight 0–5; score = Σ wᵢ sᵢ / Σ wᵢ (simple additive weighting); sensitivity sweep (limits ×0.75/×1.25, weights ×0.5/×1.5) | Steps 1–7 | Only sites passing **every** team's limits are ranked. Default weights (landing 4, power 3, comms 3, planning 2, science 1, thermal 0) are our judgment, not NASA's, and are editable |
+
+**Output:** GO / CAUTION / NO-GO for power and direct-to-Earth comms, the reasons, the Sun and Earth drawn on the real horizon, and time to the next sunset or Earthset.
+
+**Worked example (the demo):** Connecting ridge, 2026-11-15 21:00 UTC. The Sun is 1.26° above a smooth Moon's horizon but 0.91° below the real LOLA terrain horizon, so the verdict goes from CAUTION (smooth Moon) to NO-GO (real terrain), with the "Sun hidden by terrain" marker. This is tested on every `npm test` (tests/demo.test.js).
+
+**How we checked it:**
+- Sun/Earth positions match NASA JPL Horizons at 750 points (15 sites × 25 dates) within 0.007°.
+- The browser engine matches our offline Python pipeline within 0.044° at 11 polar sites.
+- Our one-year sunlit % is within 3 points of NASA's 18.6-year PGDA map at 9 of 11 sites.
+- Hourly vs 10-minute steps: 0 verdict changes (11 sites × 113 dates).
+- 28/28 automated tests pass.
+
+### Limits: what the app does not do (also stated in the app)
+- **Terrain detail:** sites north of 80°S use a smooth-Moon horizon, and the app says so. Boulders smaller than 5 m are not modelled, nor anything smaller than 80 m outside NASA's 27 high-resolution site maps. The horizon starts 240 m out, so a dip smaller than that is invisible. Example: NASA flags the exact Connecting ridge pixel as permanently shadowed, while our model says about 60 % sunlit; the verdict is NO-GO either way.
+- **Visibility** uses the centre of the Sun's or Earth's disc (plus the margin). The live fallback engine ignores light-time and aberration (< 0.01°); the JPL DE421 tables include them.
+- **Our settings, not NASA's:** stay length, the 48 h comms gap and team weights. NASA states no probability for "land within 100 m", so we assume 99.7 %. Our strict 6° rule can mark parts of NASA's own candidate regions NO-GO (Cabeus B spans 5.94–6.79°). The VSAT 9.75 m mast height comes from trade press.
+- **Not modelled:**
+  - launch windows and trajectories
+  - lighting along the approach path (only at touchdown)
+  - Deep Space Network scheduling (we check Earth is above the terrain, not antenna availability)
+  - Gateway descent opportunities are approximated as every 6.5 days from one the planner enters, because the orbit's phase isn't public
+- **Thermal** is reported, not judged, unless a team enters limits.
+- **It is a first filter**, not a certified mission tool: detailed analysis still belongs in tools like Moon Trek or Lunar QuickMap, and the final decision is a person's.
+
+Deeper: [METHOD.md](METHOD.md) (every step with sources and validation) · [DATA_LAYER.md](DATA_LAYER.md) · [tools/science/README.md](tools/science/README.md) (NASA data pipelines) · `src/engine/` (the decision code) · `data/results/` (raw run outputs).
+
 ## NASA Data Used
 - **NASA LRO LOLA south-pole topography** (NASA GSFC PGDA, "A New View of the Lunar South Pole from LOLA"): LDEM_80S_80MPP_ADJ (80 m elevation), LDSM_80S_80MPP_ADJ (slope), LPSR_80S_20MPP_ADJ_1km2 (permanently shadowed regions > 1 km²). Terrain horizons, slope, nearest ice trap.
 - **NASA PGDA Lunar Polar Illumination** (AVGVISIB_75S_120M_201608, sunlight + Earth visibility averaged over 18.6 years): choosing Artemis III region points and independent validation. LPSR_75S_120M_201608 (permanently shadowed 120 m pixels): the NASA panel's permanent-shadow display.
