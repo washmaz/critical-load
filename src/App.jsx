@@ -36,6 +36,8 @@ function readHash() {
     relay: p.get('relay') === '1',
     terrain: p.get('terrain') !== '0',   // real LOLA terrain on by default
     ephem: p.get('ephem') === 'live' ? 'live' : 'auto',
+    gateway: p.get('gw') === '1',
+    gwEpoch: p.has('gwe') ? Date.parse(p.get('gwe')) : NaN,
   };
 }
 function writeHash(s) {
@@ -48,6 +50,7 @@ function writeHash(s) {
   if (s.relay) p.set('relay', '1');
   if (!s.terrain) p.set('terrain', '0');
   if (s.ephem === 'live') p.set('ephem', 'live');
+  if (s.gateway) { p.set('gw', '1'); if (Number.isFinite(s.gwEpoch)) p.set('gwe', new Date(s.gwEpoch).toISOString().slice(0, 16) + 'Z'); }
   window.history.replaceState(null, '', `#${p.toString()}`);
 }
 
@@ -108,8 +111,9 @@ export default function App() {
   const opts = {
     slipDays: s.slipDays, missionDays: s.missionDays, marginDeg: s.marginDeg,
     batteryHours: s.batteryHours, commsGapHours: s.commsGapHours, relay: s.relay,
+    ...(s.gateway ? { descentPeriodDays: 6.5, descentEpochMs: Number.isFinite(s.gwEpoch) ? s.gwEpoch : s.landing } : {}),
   };
-  const deps = [site.lat, site.lon, s.landing, s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, terrainOn, s.ephem, ephemTick];
+  const deps = [site.lat, site.lon, s.landing, s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, terrainOn, s.ephem, ephemTick, s.gateway, s.gwEpoch];
   const a = useMemo(() => analyzeSite(site, s.landing, opts), deps);
   // Same question on a smooth Moon, so planners see what terrain changes (only when terrain is on).
   const smooth = useMemo(() => (terrainOn ? analyzeSite(baseSite, s.landing, { ...opts, slipDays: 0 }).result : null), deps);
@@ -238,6 +242,16 @@ export default function App() {
             <input type="checkbox" checked={s.relay} onChange={(e) => set({ relay: e.target.checked })} />
             Assume a relay satellite (comms always covered)
           </label>
+          <label className="check" title="NASA's Artemis III overview: with Gateway in its near-rectilinear halo orbit, a descent to the surface is possible about once every 6.5 days">
+            <input type="checkbox" checked={s.gateway} onChange={(e) => set({ gateway: e.target.checked })} />
+            Only Gateway descent opportunities (NASA: one every ~6.5 days)
+          </label>
+          {s.gateway && <>
+            <label htmlFor="gwe">One descent opportunity at (UTC)</label>
+            <input id="gwe" type="datetime-local" value={new Date(Number.isFinite(s.gwEpoch) ? s.gwEpoch : s.landing).toISOString().slice(0, 16)}
+              onChange={(e) => { const t = Date.parse(e.target.value + 'Z'); if (Number.isFinite(t)) set({ gwEpoch: t }); }} />
+            <p className="hint small">The orbit's timing isn't public, so you set one opportunity; the slip scan and date suggestions then only use opportunities every 6.5 days from it.</p>
+          </>}
           <label className="check" title={hasTerrain ? 'Use the real horizon from NASA LOLA elevation data' : 'Terrain data covers the NASA LOLA south-polar map (about 80–90°S)'}>
             <input type="checkbox" checked={s.terrain} onChange={(e) => set({ terrain: e.target.checked })} />
             Use real terrain (NASA LOLA){!hasTerrain && <span className="muted"> · not available for this site</span>}

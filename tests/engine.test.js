@@ -88,3 +88,11 @@ test('Malapert keeps Earth in view with terrain', () => {
   const real = analyzeSite(withTerrain(siteById('malapert-massif')), '2026-11-14T21:00:00Z', { slipDays: 0, missionDays: 30, marginDeg: 0 }).result.metrics;
   assert.ok(real.earthPct > 99, `earth ${real.earthPct}`);
 });
+
+test('Gateway descent opportunities: slip scan only uses dates every 6.5 days from the planner\'s epoch', async () => {
+  const { analyzeSite } = await import('../src/engine/analysis.js');
+  const L = Date.parse('2026-11-14T21:00Z'), E = Date.parse('2026-11-13T09:00Z');
+  const a = analyzeSite({ lat: -85, lon: 30 }, L, { slipDays: 14, missionDays: 7, descentPeriodDays: 6.5, descentEpochMs: E });
+  assert.ok(a.scan.length >= 4 && a.scan.length <= 5);
+  for (const c of a.scan) { const k = (c.t - E) / (6.5 * 86400e3); assert.ok(Math.abs(k - Math.round(k)) < 1e-9); assert.ok(Math.abs(c.t - L) <= 14 * 86400e3 + 1); }
+});

@@ -24,6 +24,8 @@ export const DEFAULTS = {
   commsGapHours: 48,   // longest acceptable gap in direct-to-Earth contact
   relay: false,        // assume a lunar relay satellite covers comms gaps
   slipDays: 7,         // ± schedule uncertainty around the target landing date
+  descentPeriodDays: 0, // > 0: only landing dates at orbit descent opportunities (Gateway NRHO ~6.5 d)
+  descentEpochMs: NaN,  // time of one descent opportunity (planner input)
   stepHours: 1,        // sampling step for the analysis
 };
 
@@ -138,7 +140,12 @@ export function analyzeSite(site, landing, opts = {}) {
   // Candidate landing dates across the slip window.
   const scanStepH = o.slipDays <= 10 ? 3 : o.slipDays <= 35 ? 6 : 12;
   const scan = [];
-  if (o.slipDays > 0) {
+  if (o.slipDays > 0 && o.descentPeriodDays > 0 && Number.isFinite(o.descentEpochMs)) {
+    // Only the descent opportunities the orbit allows (NASA Artemis III overview: Gateway's NRHO allows a descent
+    // about once every 6.5 days); the planner sets the first opportunity.
+    const P = o.descentPeriodDays * DAY;
+    for (let k = Math.ceil((start - o.descentEpochMs) / P); o.descentEpochMs + k * P <= L + slipMs + 1; k++) scan.push(evalAt(o.descentEpochMs + k * P));
+  } else if (o.slipDays > 0) {
     for (let ms = start; ms <= L + slipMs + 1; ms += scanStepH * HOUR) scan.push(evalAt(ms));
   }
 

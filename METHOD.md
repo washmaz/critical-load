@@ -31,7 +31,8 @@ Where the source is silent (surface-stay length, battery, thermal limits) the va
 ## 4. Landing hazards
 - **Slope:** over a 100 m baseline from LOLA elevation (matches the requirement's wording), or NASA's LDSM 80 m map. Consistency: the two agree within ~2.4° at all 11 sites.
 - **Permanent shadow:** NASA PGDA LPSR_75S_120M_201608 (120 m). A touchdown in permanent shadow fails.
-- **Not resolvable from orbit-scale maps:** boulders and roughness < 80 m. NASA's 5 m site maps (PGDA product 78) cover only some spots: listed as a gap.
+- **NASA 5 m site maps (PGDA product 78, 27 boxes):** where they exist, the "100 m" slope is computed from NASA's 5 m elevation, and a lander-footprint mode uses NASA's 5 m slope with NASA's own per-pixel RMS slope uncertainty sampled for every touchdown (slope_true ~ N(slope, σ)). Outside the boxes the check falls back to the 80 m data, and the results report the share of touchdowns on each data source.
+- **Still not resolvable:** boulders smaller than the 5 m pixels.
 
 ## 5. Landing dispersion (Monte Carlo)
 - **Calculation:** 1,000 touchdowns from a bivariate normal; the planner's ellipse is the **99.7 % containment** ellipse, so each half-axis = 3.41 σ (√(−2 ln 0.003)); 3 σ would contain only 98.9 % in 2-D. Fixed seed (repeatable).
@@ -55,8 +56,8 @@ Where the source is silent (surface-stay length, battery, thermal limits) the va
 - **Sensitivity:** each limit ×0.75 / ×1.25 and each weight ×0.5 / ×1.5, one at a time; reports how often the winner stays on top (e.g. 69 % on 2026-11-14 because Haworth and Mons Mouton Plateau are within 0.001; i.e. effectively tied).
 
 ## 9. Known gaps (stated in the app)
-1. Boulders/roughness < 80 m (NASA 5 m maps exist only for some sites).
-2. Gateway NRHO descent opportunities (~every 6.5 days per NASA): needs the reference orbit phase.
+1. Boulders smaller than 5 m (and anything < 80 m outside NASA's 27 site boxes).
+2. Gateway NRHO descent opportunities (~every 6.5 days per NASA) are modelled as an option: the slip scan and date suggestions use only opportunities every 6.5 days from one the planner enters, because the orbit's actual phase isn't public.
 3. Approach-path lighting beyond the touchdown instant (no approach direction in the source).
 4. Ground-station availability on Earth (we check Earth above the terrain, not DSN scheduling).
 
