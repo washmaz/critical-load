@@ -24,7 +24,7 @@ const fromXY = (px, py) => {
 const COLOR = { GO: '#47da84', CAUTION: '#ffb020', 'NO-GO': '#ff5c52' };
 const short = (n) => n.replace(/ \(Artemis III region\)/, '').replace(/ \(.*\)$/, '');
 
-export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint }) {
+function PolarMap({ rows, currentId, custom, onPick, onPickPoint }) {
   const [hover, setHover] = useState(null);
   const [view, setView] = useState('full');
   const V = VIEWS[view]; EXT = V.ext;
@@ -124,3 +124,5 @@ export default function PolarMap({ rows, currentId, custom, onPick, onPickPoint 
     </div>
   );
 }
+
+export default React.memo(PolarMap);

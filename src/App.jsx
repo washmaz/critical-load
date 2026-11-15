@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SITES, DEFAULT_SITE_ID, siteById, validateLatLon, normLon } from './engine/sites.js';
+import { PLACES, PLACE_GROUPS, placeById } from './places.js';
 import { analyzeSite, compareSites, DEFAULTS } from './engine/analysis.js';
 import { withTerrain, terrainFor } from './engine/terrain.js';
 import { pointFacts, inTileCoverage } from './engine/pointData.js';
@@ -13,11 +14,20 @@ import Timeline from './components/Timeline.jsx';
 import SlipWindow from './components/SlipWindow.jsx';
 import SiteCompare from './components/SiteCompare.jsx';
 import PolarMap from './components/PolarMap.jsx';
-import MoonGlobalMap from './components/MoonGlobalMap.jsx';
+// 3D globe (three.js) is its own chunk: it only downloads when the 3D view is shown.
+const MoonGlobe = lazy(() => import('./components/MoonGlobe.jsx'));
 import TimeBar from './components/TimeBar.jsx';
 import { fmtUTC, fmtShortUTC, fmtDur, fmtPct, fmtLat, fmtLon, toInputUTC, fromInputUTC, relTime, HOUR, DAY } from './format.js';
 
 const SLIP_OPTIONS = [0, 3, 7, 14, 30, 90];
+// One page, five views. Everything stays mounted (results and inputs are kept); only the selected view is shown.
+const TABS = [
+  { id: 'answer', label: 'Answer' },
+  { id: 'timeline', label: 'Timeline & launch slips' },
+  { id: 'landing', label: 'Landing simulation' },
+  { id: 'team', label: 'Team review' },
+  { id: 'compare', label: 'Compare sites' },
+];
 
 // ---- URL state (shareable scenarios) ------------------------------------
 function readHash() {
@@ -39,18 +49,23 @@ function readHash() {
     ephem: p.get('ephem') === 'live' ? 'live' : 'auto',
     gateway: p.get('gw') === '1',
     gwEpoch: p.has('gwe') ? Date.parse(p.get('gwe')) : NaN,
+    map: p.get('map') === 'polar' ? 'polar' : 'globe',
+    place: p.get('place') || null,
+    tab: TABS.some((t) => t.id === p.get('tab')) ? p.get('tab') : 'answer',
   };
 }
 function writeHash(s) {
   const p = new URLSearchParams();
   p.set('site', s.siteId);
-  if (s.siteId === 'custom') { p.set('lat', s.customLat); p.set('lon', s.customLon); }
+  if (s.siteId === 'custom') { p.set('lat', s.customLat); p.set('lon', s.customLon); if (s.place) p.set('place', s.place); }
   p.set('t', new Date(s.landing).toISOString().slice(0, 16) + 'Z');
   p.set('slip', s.slipDays); p.set('mission', s.missionDays); p.set('margin', s.marginDeg);
   p.set('battery', s.batteryHours); p.set('comms', s.commsGapHours);
   if (s.relay) p.set('relay', '1');
   if (!s.terrain) p.set('terrain', '0');
   if (s.ephem === 'live') p.set('ephem', 'live');
+  if (s.map === 'polar') p.set('map', 'polar');
+  if (s.tab && s.tab !== 'answer') p.set('tab', s.tab);
   if (s.gateway) { p.set('gw', '1'); if (Number.isFinite(s.gwEpoch)) p.set('gwe', new Date(s.gwEpoch).toISOString().slice(0, 16) + 'Z'); }
   window.history.replaceState(null, '', `#${p.toString()}`);
 }
@@ -66,7 +81,7 @@ const STAY_OPTIONS = [7, 14];
 
 export default function App() {
   const [s, setS] = useState(readHash);
-  const set = (patch) => setS((old) => ({ ...old, ...patch }));
+  const set = useCallback((patch) => setS((old) => ({ ...old, ...patch })), []);
   const [scrub, setScrub] = useState(null);
   const [stayCustom, setStayCustom] = useState(() => !STAY_OPTIONS.includes(s.missionDays));
   const [zoomPref, setZoomPref] = useState(null);
@@ -79,8 +94,12 @@ export default function App() {
   const [craters, setCraters] = useState(null);
   useEffect(() => setScrub(null), [s.landing, s.siteId, s.missionDays]);
 
+  // A named place (places.js) is a custom point with a name and a source; same engine path as a map click.
+  const place = s.siteId === 'custom' && s.place ? placeById(s.place) : null;
   const baseSite = s.siteId === 'custom'
-    ? { id: 'custom', name: `Custom (${fmtLat(s.customLat)}, ${fmtLon(s.customLon)})`, group: 'Custom', lat: s.customLat, lon: s.customLon }
+    ? (place
+      ? { id: 'custom', name: place.name, group: place.group, lat: s.customLat, lon: s.customLon, url: place.url, source: place.source, note: place.note || (place.source.startsWith('IAU') ? 'Feature centre from the IAU gazetteer: a reference point, not a chosen landing spot.' : undefined) }
+      : { id: 'custom', name: `Custom (${fmtLat(s.customLat)}, ${fmtLon(s.customLon)})`, group: 'Custom', lat: s.customLat, lon: s.customLon })
     : siteById(s.siteId) || siteById(DEFAULT_SITE_ID);
   const isCustom = s.siteId === 'custom';
   const covered = inTileCoverage(baseSite.lat, baseSite.lon);
@@ -108,22 +127,36 @@ export default function App() {
   }, [baseSite.lat, baseSite.lon]);
   useEffect(() => { if (s.siteId === 'custom') loadCraters().then(setCraters); }, [s.siteId]);
   const ephemStatus = getStatus({ lat: baseSite.lat, lon: baseSite.lon });
-  const sci = isCustom ? (liveReady ? live.science : null) : scienceFor(baseSite.id);
-  const site = isCustom ? (s.terrain && liveReady ? { ...baseSite, terrain: live.terrain } : baseSite) : withTerrain(baseSite, s.terrain);
+  const sciNow = isCustom ? (liveReady ? live.science : null) : scienceFor(baseSite.id);
+  const siteNow = isCustom ? (s.terrain && liveReady ? { ...baseSite, terrain: live.terrain } : baseSite) : withTerrain(baseSite, s.terrain);
+  // Presentation only: while NASA terrain for a newly picked point is still loading, keep showing the last finished
+  // result (dimmed, with a "calculating" note) instead of a temporary smooth-Moon answer with the terrain panels
+  // removed. That temporary state made the verdict flicker and the page collapse and re-grow (the "jerk").
+  // The engine is called with exactly the same inputs as before once the terrain arrives.
+  const liveFailed = !!(live && live.key === liveKey && live.error);
+  const pending = isCustom && covered && s.terrain && !liveReady && !liveFailed;
+  const shownRef = useRef(null);
+  const shownKey = `${s.siteId}|${liveKey}|${s.terrain}|${liveReady}|${liveFailed}`;
+  if ((!pending && (!shownRef.current || shownRef.current.key !== shownKey)) || !shownRef.current)
+    shownRef.current = { site: siteNow, base: baseSite, sci: sciNow, id: s.siteId, key: shownKey };
+  const updating = pending;
+  const { site, sci } = shownRef.current;
+  const shownBase = shownRef.current.base;
   const terrainOn = !!site.terrain;
+  const shownHasTerrain = site.id === 'custom' ? inTileCoverage(site.lat, site.lon) : !!terrainFor(site.id);
 
-  const opts = {
+  const opts = useMemo(() => ({
     slipDays: s.slipDays, missionDays: s.missionDays, marginDeg: s.marginDeg,
     batteryHours: s.batteryHours, commsGapHours: s.commsGapHours, relay: s.relay,
     ...(s.gateway ? { descentPeriodDays: 6.5, descentEpochMs: Number.isFinite(s.gwEpoch) ? s.gwEpoch : s.landing } : {}),
-  };
+  }), [s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, s.gateway, s.gwEpoch, s.landing]);
   const deps = [site.lat, site.lon, s.landing, s.slipDays, s.missionDays, s.marginDeg, s.batteryHours, s.commsGapHours, s.relay, terrainOn, s.ephem, ephemTick, s.gateway, s.gwEpoch];
   const a = useMemo(() => analyzeSite(site, s.landing, opts), deps);
   // Same question on a smooth Moon, so planners see what terrain changes (only when terrain is on).
-  const smooth = useMemo(() => (terrainOn ? analyzeSite(baseSite, s.landing, { ...opts, slipDays: 0 }).result : null), deps);
+  const smooth = useMemo(() => (terrainOn ? analyzeSite(shownBase, s.landing, { ...opts, slipDays: 0 }).result : null), deps);
   const compareRows = useMemo(() => compareSites(
-    (isCustom ? [...SITES.map((x) => withTerrain(x, s.terrain)), site] : SITES.map((x) => withTerrain(x, s.terrain))), s.landing, opts),
-  [...deps, s.siteId]);
+    (site.id === 'custom' ? [...SITES.map((x) => withTerrain(x, s.terrain)), site] : SITES.map((x) => withTerrain(x, s.terrain))), s.landing, opts),
+  [...deps, shownRef.current.id]);
 
   const { series, result } = a;
   const m = result.metrics, v = result.verdict;
@@ -144,9 +177,32 @@ export default function App() {
     const lat = parseFloat(customDraft.lat), lon = parseFloat(customDraft.lon);
     const err = validateLatLon(lat, lon);
     setCustomErr(err);
-    if (!err) set({ siteId: 'custom', customLat: lat, customLon: normLon(lon) });
+    if (!err) set({ siteId: 'custom', customLat: lat, customLon: normLon(lon), place: null });
   };
   const shift = (days) => set({ landing: s.landing + days * DAY });
+  // The locked demo (README / video): Connecting ridge, 2026-11-15 21:00 UTC, default settings, starting on the smooth Moon.
+  const backToDemo = () => {
+    setCustomErr(null);
+    set({ tab: 'answer', siteId: 'connecting-ridge', place: null, landing: Date.parse('2026-11-15T21:00:00Z'), terrain: false,
+      slipDays: DEFAULTS.slipDays, missionDays: DEFAULTS.missionDays, marginDeg: DEFAULTS.marginDeg, batteryHours: DEFAULTS.batteryHours,
+      commsGapHours: DEFAULTS.commsGapHours, relay: false, gateway: false, ephem: 'auto' });
+    setStayCustom(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  useEffect(() => { if (s.siteId !== 'custom') { setCustomDraft({ lat: String(baseSite.lat), lon: String(baseSite.lon) }); setCustomErr(null); } }, [s.siteId]);
+  const pickPoint = useCallback((lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon, place: null }); }, [set]);
+  const pickSite = useCallback((id) => set({ siteId: id, place: null }), [set]);
+  const onSiteSelect = (v) => {
+    if (v.startsWith('place:')) {
+      const pl = placeById(v.slice(6));
+      if (pl) { setCustomDraft({ lat: String(pl.lat), lon: String(pl.lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: pl.lat, customLon: pl.lon, place: pl.id }); }
+    } else set({ siteId: v, place: null });
+  };
+  const pickTime = useCallback((t) => set({ landing: t }), [set]);
+  const simPick = useCallback((lat, lon) => { pickPoint(lat, lon); set({ tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pickPoint, set]);
+  const teamLoad = useCallback((x) => { if (x.id === 'custom') return; set({ siteId: x.id, place: null, tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [set]);
+  const teamSites = useMemo(() => [...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(site.id === 'custom' && inTileCoverage(site.lat, site.lon) ? [shownBase] : [])], [site, shownBase]);
+  const statusById = useMemo(() => Object.fromEntries(compareRows.map((r) => [r.site.id, r.verdict.status])), [compareRows]);
 
   return (
     <div className="app">
@@ -157,6 +213,7 @@ export default function App() {
           <p className="tagline">Is there power? Can we talk to Earth? For how long? And does it still work if the launch slips?</p>
         </div>
         <div className="top-actions">
+          <button className="ghost" onClick={backToDemo} title="Connecting ridge, 15 Nov 2026 21:00 UTC, starting on the smooth Moon">Back to demo</button>
           <button className="ghost" onClick={() => window.print()} title="Print or save this scenario as a PDF">Print / PDF</button>
           <button className="ghost" onClick={() => setShowAbout((x) => !x)}>{showAbout ? 'Close' : 'How it works'}</button>
         </div>
@@ -169,32 +226,33 @@ export default function App() {
       <section className="panel topbar">
         <div className="field site-field">
           <label htmlFor="site">Landing site</label>
-          <select id="site" value={s.siteId} onChange={(e) => set({ siteId: e.target.value })}>
+          <select id="site" value={place ? `place:${place.id}` : s.siteId} onChange={(e) => onSiteSelect(e.target.value)}>
             {['South pole', 'Artemis III regions', 'Other sites'].map((g) => (
               <optgroup key={g} label={g}>
                 {SITES.filter((x) => x.group === g).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
               </optgroup>
             ))}
+            {PLACE_GROUPS.map((g) => (
+              <optgroup key={g} label={`Named places: ${g.toLowerCase()}`}>
+                {PLACES.filter((x) => x.group === g).map((x) => <option key={x.id} value={`place:${x.id}`}>{x.name}</option>)}
+              </optgroup>
+            ))}
             <option value="custom">Custom coordinates…</option>
           </select>
           <p className="site-meta">
-            {fmtLat(site.lat)}, {fmtLon(site.lon)}
-            {site.url && <> · <a href={site.url} target="_blank" rel="noreferrer">source</a></>}
-            {site.note && <span className="muted"> · {site.note}</span>}
+            {fmtLat(baseSite.lat)}, {fmtLon(baseSite.lon)}
+            {baseSite.url && <> · <a href={baseSite.url} target="_blank" rel="noreferrer">source</a></>}
+            {baseSite.note && <span className="muted"> · {baseSite.note}</span>}
           </p>
-          {s.siteId === 'custom' && (
-            <div className="custom">
-              <input aria-label="Latitude" value={customDraft.lat} onChange={(e) => setCustomDraft({ ...customDraft, lat: e.target.value })} placeholder="lat (−90…90)" />
-              <input aria-label="Longitude" value={customDraft.lon} onChange={(e) => setCustomDraft({ ...customDraft, lon: e.target.value })} placeholder="lon (°E)" />
-              <button onClick={applyCustom}>Use</button>
-              {customErr && <span className="error">{customErr}</span>}
-            </div>
-          )}
-          {s.siteId === 'custom' && <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={hasTerrain} />}
-          {isCustom && covered && live && live.key === liveKey && (live.loading
-            ? <p className="hint small">Computing the real terrain horizon here from NASA LOLA tiles…</p>
-            : live.error ? <p className="hint small warn">Couldn't load NASA terrain here: {live.error}</p>
-            : <p className="hint small">Real terrain computed for this exact point from NASA LOLA (80 m) and NASA / Diviner maps.</p>)}
+          {/* Always shown (not only for "Custom"), so the top bar keeps one height and nothing below it jumps. */}
+          <form className="custom" onSubmit={(e) => { e.preventDefault(); applyCustom(); }}>
+            <span className="custom-label">Or any point:</span>
+            <input aria-label="Latitude (degrees, south negative)" inputMode="decimal" value={customDraft.lat} onChange={(e) => setCustomDraft({ ...customDraft, lat: e.target.value })} placeholder="lat (−90…90)" />
+            <input aria-label="Longitude (degrees east)" inputMode="decimal" value={customDraft.lon} onChange={(e) => setCustomDraft({ ...customDraft, lon: e.target.value })} placeholder="lon (°E)" />
+            <button type="submit">Use</button>
+            {customErr && <span className="error">{customErr}</span>}
+          </form>
+          <small className="field-help">Latitude −90 to 90 (south is negative), longitude −180 to 180 °E. E.g. −89.45, −137.3. Press Enter to check.</small>
         </div>
         <div className="field">
           <label htmlFor="date">Target landing</label>
@@ -203,7 +261,7 @@ export default function App() {
               onChange={(e) => { const ms = fromInputUTC(e.target.value); if (ms) set({ landing: ms }); }} />
             <span className="utc-tag">UTC</span>
           </div>
-          <p className="hint small">{fmtUTC(s.landing)}</p>
+          <p className="hint small">{fmtUTC(s.landing)} · all times are UTC</p>
           <div className="jumps">
             <button onClick={() => shift(-29.53)} title="One lunar day earlier">−1 lunar day</button>
             <button onClick={() => shift(-1)}>−1 d</button>
@@ -280,11 +338,20 @@ export default function App() {
         </div>
       </details>
 
-      {/* ---------------- Verdict + numbers | map + sky ---------------- */}
+      <nav className="tabs" role="tablist" aria-label="Views">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" id={`tab-${t.id}`} aria-selected={s.tab === t.id} aria-controls={`view-${t.id}`}
+            className={s.tab === t.id ? 'on' : ''} onClick={() => set({ tab: t.id })}>{t.label}</button>
+        ))}
+      </nav>
+
+      {/* ---------------- Answer: verdict + numbers | map + sky ---------------- */}
+      <div role="tabpanel" id="view-answer" aria-labelledby="tab-answer" hidden={s.tab !== 'answer'}>
       <section className="grid-2 main">
-        <div className="panel">
+        <div className={`panel results ${updating ? 'is-updating' : ''}`} aria-busy={updating}>
+          {updating && <p className="updating-note" role="status"><span className="spinner" aria-hidden="true" />Calculating real NASA terrain for {fmtLat(baseSite.lat)}, {fmtLon(baseSite.lon)}…</p>}
           <div className={`verdict ${statusClass(v.status)}`}>
-            <span className="verdict-badge">{v.status}</span>
+            <span className="verdict-badge" key={v.status}><VerdictIcon status={v.status} />{v.status}</span>
             <div>
               <p className="verdict-head">{HEADLINE[v.status]}</p>
               <p className="muted small">{site.name} · landing {fmtUTC(s.landing)} · {s.missionDays === 29.53 ? '29.5' : s.missionDays}-day mission
@@ -297,6 +364,15 @@ export default function App() {
               <button className={s.terrain ? 'on' : ''} aria-pressed={s.terrain} onClick={() => set({ terrain: true })}>Real NASA terrain</button>
             </div>
           )}
+          {!shownHasTerrain && (
+            <div className="notice" role="note">
+              <strong>No NASA terrain data for this place.</strong> This answer is calculated on a smooth Moon, so hills and crater walls that could block the Sun or Earth are not included. Real NASA terrain (LRO LOLA) covers only the south pole, about 80–90°S.
+            </div>
+          )}
+          {site.id === 'custom' && <div className="point-notes">
+            <CustomCraterNote craters={craters} lat={site.lat} lon={site.lon} terrain={inTileCoverage(site.lat, site.lon)} />
+            {liveFailed && !updating && <p className="hint small warn">Couldn't load NASA terrain here: {live.error}. Showing the smooth Moon.</p>}
+          </div>}
           {smooth && <SmoothVs smooth={smooth} real={result} />}
           <ul className="reasons">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul>
 
@@ -315,11 +391,22 @@ export default function App() {
           {sci && <ScienceFacts sci={sci} terrain={site.terrain} />}
         </div>
         <div className="side">
-          <div className="panel">
-            <h2>Where it is</h2>
-            <PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: site.lat, lon: site.lon } : null}
-              onPick={(id) => set({ siteId: id })}
-              onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); }} />
+          <div className="panel where">
+            <div className="where-head">
+              <h2>Where it is</h2>
+              <div className="seg map-tabs" role="tablist" aria-label="Map type">
+                <button role="tab" aria-selected={s.map === 'globe'} className={s.map === 'globe' ? 'on' : ''} onClick={() => set({ map: 'globe' })}>3D Moon</button>
+                <button role="tab" aria-selected={s.map === 'polar'} className={s.map === 'polar' ? 'on' : ''} onClick={() => set({ map: 'polar' })}>South pole map</button>
+              </div>
+            </div>
+            {s.map === 'globe'
+              ? <Suspense fallback={<div className="globe-box globe-loading"><p className="hint">Loading the 3D Moon…</p></div>}>
+                  <MoonGlobe sites={SITES} statusById={statusById} currentId={s.siteId}
+                    custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon, name: place ? place.name : null } : null}
+                    onPick={pickSite} onPickPoint={pickPoint} />
+                </Suspense>
+              : <PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon } : null}
+                  onPick={pickSite} onPickPoint={pickPoint} />}
           </div>
           <div className="panel">
             <h2>Sky at {fmtShortUTC(tNow)} UTC</h2>
@@ -327,22 +414,24 @@ export default function App() {
             <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
               zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
           </div>
-          <details className="panel moon-global">
-            <summary><h2>Whole Moon map (NASA Moon Trek)</h2></summary>
-            <p className="hint">All sites on NASA's LRO Wide Angle Camera global mosaic, coloured by verdict like the map above. Click a pin to load it. South-pole sites cluster along the bottom edge; zoom in with + or use the polar map above for detail.</p>
-            <MoonGlobalMap sites={SITES} currentId={s.siteId} onPick={(id) => set({ siteId: id })}
-              statusById={Object.fromEntries(compareRows.map((r) => [r.site.id, r.verdict.status]))} />
-            <p className="hint">Imagery: LRO WAC Global Mosaic 303 ppd v02, NASA Solar System Treks (Moon Trek), NASA LRO LROC / Arizona State University. Map library: Leaflet.</p>
-          </details>
         </div>
       </section>
 
-      {covered && <LandingSim site={site} landing={s.landing} appOpts={opts}
-        onPickPoint={(lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />}
+      </div>
 
-      <TeamReview stayDays={s.missionDays} sites={[...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(isCustom && covered ? [baseSite] : [])]} landing={s.landing} marginDeg={s.marginDeg}
-        onLoad={(x) => { if (x.id === 'custom') return; set({ siteId: x.id }); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+      <div role="tabpanel" id="view-landing" aria-labelledby="tab-landing" hidden={s.tab !== 'landing'}>
+        {inTileCoverage(site.lat, site.lon)
+          ? <LandingSim site={site} landing={s.landing} appOpts={opts} onPickPoint={simPick} />
+          : <section className="panel"><h2>Landing simulation</h2>
+              <p className="hint">The 1,000-touchdown simulation checks slope, shadow and horizon at every touchdown point on NASA LOLA terrain, which exists only at the south pole (about 80–90°S).
+                {' '}{site.name} is outside that map. Pick a south-pole site, or click inside the dashed 80°S ring on the 3D Moon.</p></section>}
+      </div>
 
+      <div role="tabpanel" id="view-team" aria-labelledby="tab-team" hidden={s.tab !== 'team'}>
+        <TeamReview stayDays={s.missionDays} sites={teamSites} landing={s.landing} marginDeg={s.marginDeg} onLoad={teamLoad} />
+      </div>
+
+      <div role="tabpanel" id="view-timeline" aria-labelledby="tab-timeline" hidden={s.tab !== 'timeline'}>
       <section className="panel">
         <h2>Mission timeline</h2>
         <p className="hint">Elevation of the Sun (gold) and Earth (blue) from landing to end of mission.{terrainOn && ' Grey dashed line = height of the real terrain in the Sun\'s direction: when gold drops below it, the Sun is hidden.'} Lanes: coloured = available, amber = marginal (inside the ±{s.marginDeg}° band), dark = not available.</p>
@@ -352,13 +441,16 @@ export default function App() {
 
       <section className="panel">
         <h2>What if the launch slips?</h2>
-        <SlipWindow analysis={a} onPick={(t) => set({ landing: t })} />
+        <SlipWindow analysis={a} onPick={pickTime} />
       </section>
+      </div>
 
+      <div role="tabpanel" id="view-compare" aria-labelledby="tab-compare" hidden={s.tab !== 'compare'}>
       <section className="panel">
         <h2>Compare sites for this landing date</h2>
-        <SiteCompare rows={compareRows} currentId={s.siteId} onPick={(id) => set({ siteId: id })} landing={s.landing} opts={opts} />
+        <SiteCompare rows={compareRows} currentId={s.siteId} onPick={pickSite} landing={s.landing} opts={opts} />
       </section>
+      </div>
 
       <footer className="foot">
         <p><strong>Honest limits:</strong> “Up” means the body's centre is more than ±{s.marginDeg}° above the horizon in its direction.
@@ -394,13 +486,50 @@ function windowNote({ body, clear, margin, terrain, upAtStart, end, start, landi
   return `${body} ${where}; ${next}`;
 }
 
+// One-line help for jargon, shown from a "?" next to the label (hover, focus or tap).
+const HELP = {
+  'Sun elevation at landing': 'Angle of the Sun above the local horizon at touchdown. With real terrain it is measured against the hills in the Sun\'s direction.',
+  'Sunlit this mission': 'Share of the surface stay with the Sun confidently above the horizon (beyond the ± margin). Power depends on this.',
+  'Longest dark stretch': 'Longest unbroken time without sunlight during the stay. If it is longer than the battery lasts, the verdict is NO-GO.',
+  'Earth elevation at landing': 'Angle of Earth above the local horizon at touchdown. Direct radio to Earth needs Earth in view.',
+  'Earth in view this mission': 'Share of the stay with Earth above the horizon, so direct-to-Earth radio works.',
+  'Longest comms gap': 'Longest unbroken time with Earth hidden. A relay satellite would cover these gaps.',
+  'Sunlit over a year': 'Share of one year the Sun clears the real terrain here, from our model with NASA LOLA elevation.',
+  'Earth in view over a year': 'Share of one year Earth clears the real terrain here.',
+  'Ground elevation': 'Height of the ground above the Moon\'s 1737.4 km reference sphere (NASA LOLA).',
+  'Slope at site': 'Steepness of the ground at the point, from NASA LOLA. Landers have a maximum slope they can stand on (often about 8–12°).',
+  'Nearest ice trap': 'Distance to the nearest permanently shadowed region (PSR): ground that never sees the Sun and can hold water ice.',
+  'Nearest permanent shadow': 'Distance to the nearest permanently shadowed region (PSR) on NASA\'s LPSR map. PSRs are very cold and can trap water ice.',
+  'NASA map: sunlit (long-term)': 'NASA Goddard\'s 18.6-year average sunlight at this spot (Mazarico et al. 2011): an independent check on our numbers.',
+  'NASA map: Earth in view (long-term)': 'NASA Goddard\'s long-term average Earth visibility at this spot: an independent check.',
+  'Water ice (Diviner)': 'Depth where water ice would stay frozen, from LRO Diviner temperatures. Shallower ice is easier to reach.',
+  'Ground temperature (Diviner)': 'Surface temperature measured by NASA LRO\'s Diviner instrument. Report only: NASA publishes no limit.',
+  'Craters ≥ 1 km within 5 km': 'Number of craters at least 1 km wide nearby (Robbins 2019 USGS catalogue): a rough measure of rough ground.',
+};
+export function Tip({ text }) {
+  if (!text) return null;
+  return <span className="tip" tabIndex={0} role="note" aria-label={text} data-tip={text}>?</span>;
+}
+
 function Metric({ label, value, sub, tone }) {
   return (
     <div className={`metric ${tone}`}>
-      <p className="metric-label">{label}</p>
-      <p className="metric-value">{value}</p>
+      <p className="metric-label">{label} <Tip text={HELP[label]} /></p>
+      <p className="metric-value" key={value}>{value}</p>
       {sub && <p className="metric-sub">{sub}</p>}
     </div>
+  );
+}
+
+// Shape as well as colour: check = GO, triangle = CAUTION, cross = NO-GO.
+export function VerdictIcon({ status }) {
+  const d = status === 'GO' ? 'M5 10.5l3.2 3.2L15 7' : status === 'CAUTION' ? 'M10 6.5v4.5M10 13.6v.2' : 'M6.5 6.5l7 7M13.5 6.5l-7 7';
+  return (
+    <svg className="vicon" viewBox="0 0 20 20" aria-hidden="true">
+      {status === 'CAUTION' ? <path d="M10 2.5L18 17H2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        : <circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" />}
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -410,9 +539,9 @@ function FlipBanner({ smooth, real, changes }) {
     <div className="flip" role="status">
       <p className="flip-title">Real terrain changes the answer</p>
       <div className="flip-row">
-        <div className={`flip-chip ${cls(smooth.verdict.status)}`}><span>Smooth Moon</span><strong>{smooth.verdict.status}</strong></div>
+        <div className={`flip-chip ${cls(smooth.verdict.status)}`}><span>Smooth Moon</span><strong><VerdictIcon status={smooth.verdict.status} />{smooth.verdict.status}</strong></div>
         <span className="flip-arrow" aria-hidden="true">→</span>
-        <div className={`flip-chip ${cls(real.verdict.status)}`}><span>Real NASA terrain</span><strong>{real.verdict.status}</strong></div>
+        <div className={`flip-chip ${cls(real.verdict.status)}`}><span>Real NASA terrain</span><strong><VerdictIcon status={real.verdict.status} />{real.verdict.status}</strong></div>
       </div>
       {changes.length > 0 && <p className="flip-detail">{changes.join(' · ')}</p>}
     </div>

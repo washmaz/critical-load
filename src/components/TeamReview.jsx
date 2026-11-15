@@ -9,8 +9,24 @@ const FIELDS = {
   thermal: [['minAvgK', 'Lowest avg temp (K, blank = none)'], ['maxSurfaceK', 'Highest max temp (K, blank = none)']],
   science: [],
 };
+// What goes in each box: units, allowed range and an example (presentation only).
+const HELP = {
+  stayDays: 'Days on the surface, 0.5–30. E.g. 7',
+  slipDays: 'Days the landing date may move either way, 0–90. E.g. 7',
+  poleWithinDeg: 'Degrees of latitude from the pole, 0–10. E.g. 6 (NASA Artemis III: within 6°)',
+  batteryHours: 'Hours the lander survives without sunlight. E.g. 48',
+  panelHeightM: 'Height of arrays above ground, metres, 0–50. E.g. 2',
+  commsGapHours: 'Longest allowed gap with no Earth in view, hours. E.g. 48',
+  relay: 'Tick if a relay satellite covers comms (gaps then do not count)',
+  slopeMaxDeg: 'Steepest ground allowed, degrees, 1–45. E.g. 10',
+  slopeBaselineM: 'Distance slope is measured over, metres (e.g. 100), or "ldsm" for the NASA 5 m map',
+  radiusM: 'Radius that holds 99.7 % of landings, metres. E.g. 100',
+  minAvgK: 'Kelvin, optional. Fails sites colder than this on average. E.g. 100',
+  maxSurfaceK: 'Kelvin, optional. Fails sites hotter than this at peak. E.g. 390',
+  weight: 'How much this team counts in the ranking: 0 = ignore, 5 = most',
+};
 
-export default function TeamReview({ sites, landing, marginDeg, stayDays, onLoad }) {
+function TeamReview({ sites, landing, marginDeg, stayDays, onLoad }) {
   const [inp, setInp] = useState(() => ({ ...DEFAULT_TEAM_INPUTS, mission: { ...DEFAULT_TEAM_INPUTS.mission, stayDays: stayDays ?? DEFAULT_TEAM_INPUTS.mission.stayDays } }));
   const [st, setSt] = useState(null);
   const [res, setRes] = useState(null);
@@ -41,15 +57,19 @@ export default function TeamReview({ sites, landing, marginDeg, stayDays, onLoad
           <fieldset key={t} className="team-box">
             <legend>{meta.label}</legend>
             {FIELDS[t].map(([k, label]) => (
-              <label key={k} className="team-field">{label}
-                {k === 'relay'
-                  ? <input type="checkbox" checked={inp[t][k]} onChange={(e) => set(t, k, e.target.checked)} />
-                  : <input type={k === 'slopeBaselineM' ? 'text' : 'number'} value={inp[t][k] ?? ''} placeholder="none"
-                      onChange={(e) => set(t, k, k === 'slopeBaselineM' ? (e.target.value === 'ldsm' ? 'ldsm' : num(e.target.value) ?? 100) : num(e.target.value))} />}
-              </label>
+              <div key={k} className="team-item">
+                <label className="team-field">{label}
+                  {k === 'relay'
+                    ? <input type="checkbox" checked={inp[t][k]} onChange={(e) => set(t, k, e.target.checked)} />
+                    : <input type={k === 'slopeBaselineM' ? 'text' : 'number'} value={inp[t][k] ?? ''} placeholder="none"
+                        onChange={(e) => set(t, k, k === 'slopeBaselineM' ? (e.target.value === 'ldsm' ? 'ldsm' : num(e.target.value) ?? 100) : num(e.target.value))} />}
+                </label>
+                {HELP[k] && <small className="field-help">{HELP[k]}</small>}
+              </div>
             ))}
-            {t !== 'thermal' && <label className="team-field">Weight (0–5)
-              <input type="number" min="0" max="5" value={inp[t].weight} onChange={(e) => set(t, 'weight', Math.max(0, Math.min(5, +e.target.value)))} /></label>}
+            {t !== 'thermal' && <div className="team-item"><label className="team-field">Weight (0–5)
+              <input type="number" min="0" max="5" value={inp[t].weight} onChange={(e) => set(t, 'weight', Math.max(0, Math.min(5, +e.target.value)))} /></label>
+              <small className="field-help">{HELP.weight}</small></div>}
             <p className="muted small">{meta.criterion}</p>
           </fieldset>
         ))}
@@ -76,7 +96,7 @@ function CustomCriteria({ inp, setInp, sites }) {
       {list.map((c) => (
         <div key={c.id} className="criterion">
           <div className="criterion-head">
-            <label className="team-field">Name <input type="text" value={c.name} onChange={(e) => put(c.id, { name: e.target.value })} /></label>
+            <label className="team-field">Name <input type="text" value={c.name} placeholder="e.g. Boulder density" onChange={(e) => put(c.id, { name: e.target.value })} /></label>
             <label className="team-field">Owning team <input type="text" value={c.owner} placeholder="e.g. Science" onChange={(e) => put(c.id, { owner: e.target.value })} /></label>
             <label className="team-field">Type
               <select value={c.kind} onChange={(e) => put(c.id, { kind: e.target.value, values: {} })}>
@@ -142,3 +162,5 @@ function TeamResult({ res, onLoad }) {
     </div>
   );
 }
+
+export default React.memo(TeamReview);

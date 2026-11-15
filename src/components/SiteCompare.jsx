@@ -33,7 +33,7 @@ export function compareCSV(rows, landing, opts) {
   document.body.appendChild(a); a.click(); a.remove();
 }
 
-export default function SiteCompare({ rows, currentId, onPick, landing, opts }) {
+function SiteCompare({ rows, currentId, onPick, landing, opts }) {
   const [filter, setFilter] = useState('pole');
   const [picked, setPicked] = useState([]);
   const shown = rows.filter((r) => inFilter(filter, r));
@@ -109,3 +109,5 @@ export default function SiteCompare({ rows, currentId, onPick, landing, opts }) 
     </div>
   );
 }
+
+export default React.memo(SiteCompare);

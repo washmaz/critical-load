@@ -328,8 +328,158 @@ button.primary:disabled { opacity: .55; cursor: progress; }
 
 /* Map edge labels sit inside the frame. */
 .pmap-grid.edge-l { text-anchor: start; } .pmap-grid.edge-r { text-anchor: end; }
-/* Whole Moon map (NASA Moon Trek tiles via Leaflet), collapsed by default so the demo layout above is unchanged */
-.moon-global summary { cursor: pointer; list-style: revert; }
-.moon-global summary h2 { display: inline; }
-.moon-global-map { height: 300px; width: 100%; border-radius: 8px; background: #000; margin: 8px 0; }
-@media (max-width: 480px) { .moon-global-map { height: 240px; } }
+
+/* ---- Smooth updates (15 Nov, presentation only) ----
+   1. While NASA terrain for a new point loads, the last result stays in place, dimmed, with a status note on top:
+      no temporary answer, no collapsing panels, so the page doesn't jump.
+   2. Changed values fade in; verdict colours cross-fade. All motion is off for prefers-reduced-motion. */
+.results { position: relative; }
+.results > * { transition: opacity .25s ease; }
+.results.is-updating > *:not(.updating-note) { opacity: .38; pointer-events: none; }
+.updating-note { position: absolute; z-index: 3; top: 10px; left: 50%; transform: translateX(-50%); margin: 0; max-width: calc(100% - 24px);
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--nasa-blue-tint);
+  font-size: 13px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.6); width: max-content; border-radius: 14px; }
+.spinner { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); border-top-color: var(--nasa-blue-tint); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.verdict { transition: background-color .35s ease, border-color .35s ease; }
+.verdict-badge, .metric-value { animation: valueIn .35s ease both; }
+@keyframes valueIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+/* Reserve room so a one-line vs two-line note doesn't move everything under it. */
+.metric-sub { min-height: 2.9em; }
+.terrain-facts .metric-sub { min-height: 2.9em; }
+.verdict-head { min-height: 1.5em; }
+.reasons { min-height: 3.2em; }
+@media (prefers-reduced-motion: reduce) {
+  .results > *, .verdict { transition: none; }
+  .verdict-badge, .metric-value { animation: none; }
+  .spinner { animation-duration: 2.4s; }
+}
+
+/* ---- Where it is: 3D Moon | South pole map ---- */
+.where-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.where-head h2 { margin: 0; }
+.map-tabs button { padding: 6px 12px; }
+.globe-wrap { position: relative; }
+.globe-box { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: #000; }
+.globe-loading { display: flex; align-items: center; justify-content: center; }
+.globe-canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; outline: none; }
+.globe-canvas:active { cursor: grabbing; }
+.globe-canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--nasa-blue-tint); }
+.globe-pins { position: absolute; inset: 0; pointer-events: none; }
+.gpin { position: absolute; left: 0; top: 0; pointer-events: auto; padding: 0; border: 0; background: none; width: 0; height: 0; overflow: visible; will-change: transform; }
+.gpin i { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: var(--pin); border: 2px solid #000; box-sizing: border-box; }
+.gpin::before { content: ''; position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; } /* bigger tap target */
+.gpin.sel i { left: -9px; top: -9px; width: 18px; height: 18px; box-shadow: 0 0 0 3px #fff; }
+.gpin:focus-visible i { box-shadow: 0 0 0 3px var(--nasa-blue-tint); }
+.gpin span { position: absolute; left: 12px; top: -9px; white-space: nowrap; font-size: 12px; font-weight: 600; color: #fff; background: rgba(0,0,0,.72); padding: 1px 6px; border-radius: 4px; pointer-events: none; }
+.gpin.sel span { font-size: 13px; }
+.gcustom { pointer-events: none; }
+.gcustom b { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; }
+.gcustom b::before, .gcustom b::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 0 1px #000; }
+.gcustom b::before { left: 8px; top: 0; width: 2px; height: 18px; } .gcustom b::after { top: 8px; left: 0; height: 2px; width: 18px; }
+.globe-tools { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; pointer-events: none; }
+.globe-tools > * { pointer-events: auto; }
+.globe-tools .seg { background: rgba(23,23,27,.85); }
+.globe-btns { display: flex; flex-direction: column; gap: 4px; }
+.globe-btns button { width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; background: rgba(23,23,27,.85); }
+.globe-views { position: absolute; left: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 16px); }
+.globe-views button { font-size: 12px; padding: 4px 9px; background: rgba(23,23,27,.85); }
+.globe-load { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.08); }
+.globe-load > div { height: 100%; background: var(--nasa-blue-tint); transition: width .3s; }
+.globe-fail { position: absolute; left: 12px; right: 12px; top: 50px; margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.8); border: 1px solid var(--caution); font-size: 13px; }
+.statusbar .legend i.ring80 { background: none; border: 1.5px dashed var(--sun); width: 10px; height: 10px; }
+@media (max-width: 560px) { .globe-tools .seg button { font-size: 12px; padding: 5px 8px; } }
+@media print { .globe-tools, .globe-views, .map-tabs { display: none !important; } }
+.custom { margin-top: 2px; }
+.custom-label { font-size: 12px; color: var(--muted); }
+.custom input { width: 110px; }
+.point-notes { margin-top: 8px; }
+.point-notes .hint { margin: 4px 0 0; }
+.statusbar b, .statusbar > span:first-child { white-space: nowrap; }
+@media (max-width: 560px) {
+  .globe-wrap .statusbar { flex-wrap: wrap; gap: 4px 12px; }
+  .globe-wrap .statusbar .legend { margin-left: 0; flex-wrap: wrap; }
+  .globe-views { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .globe-views button { white-space: nowrap; flex: none; }
+}
+.notice { margin: 10px 0 4px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); border-left: 3px solid var(--caution); background: var(--panel2); font-size: 14px; }
+.notice strong { color: var(--txt); }
+.field-help { display: block; font-size: 12px; line-height: 1.35; color: var(--muted); margin-top: 2px; }
+.team-item { margin: 4px 0 8px; }
+.team-item .team-field { margin: 0; }
+.vicon { width: .9em; height: .9em; vertical-align: -0.08em; margin-right: .3em; flex: none; }
+.tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin-left: 4px; border-radius: 50%;
+  border: 1px solid var(--muted); color: var(--muted); font: 600 10px/1 var(--font-head); text-transform: none; letter-spacing: 0; cursor: help; vertical-align: 1px; }
+.tip:hover, .tip:focus-visible { color: var(--txt); border-color: var(--txt); outline: none; }
+.tip::after { content: attr(data-tip); position: absolute; z-index: 20; left: 50%; top: calc(100% + 6px); transform: translateX(-50%); width: max-content; max-width: 260px;
+  padding: 8px 10px; border-radius: 8px; background: #26262b; border: 1px solid var(--line); color: var(--txt); font: 400 12.5px/1.4 var(--font-body);
+  box-shadow: 0 8px 24px rgba(0,0,0,.5); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s; white-space: normal; }
+.tip:hover::after, .tip:focus::after { opacity: 1; visibility: visible; }
+
+/* ==== Calm theme (15 Nov): one typeface, quiet greys, NASA blue as the only accent; colour only where it carries meaning
+   (GO / CAUTION / NO-GO, a limit breached, Sun and Earth in charts). Overrides earlier rules; no layout logic here. ==== */
+:root {
+  --font-body: Inter, system-ui, sans-serif; --font-head: Inter, system-ui, sans-serif;
+  --bg: #0b0b0d; --panel: #141417; --panel2: #1c1c20; --line: #2c2c31; --muted: #a3a3a8; --accent: var(--nasa-blue-tint);
+}
+body { font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; letter-spacing: -0.005em; }
+h1 { font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
+h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+h3 { font-weight: 600; }
+.eyebrow { color: var(--muted); font-weight: 600; letter-spacing: .08em; }
+.tagline { font-size: 15px; }
+.panel { border-radius: 12px; padding: 20px; border-color: var(--line); }
+.topbar { padding: 16px 20px; }
+button, select, input { border-color: var(--line); border-radius: 8px; transition: border-color .15s, background-color .15s; }
+button:hover, select:hover, input:hover { border-color: #4a4a50; }
+a { color: var(--accent); }
+.field label, .constraints-grid label { color: var(--muted); font-weight: 600; letter-spacing: .05em; font-size: 11.5px; }
+.utc-tag { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 600; }
+
+/* tabs */
+.tabs { position: sticky; top: 0; z-index: 15; display: flex; gap: 2px; margin: 0 0 16px; padding: 6px 0 0; background: var(--bg);
+  border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tabs button { flex: none; border: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); padding: 10px 16px; font-weight: 500; font-size: 14.5px;
+  box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .2s; }
+.tabs button:hover { color: var(--txt); background: transparent; }
+.tabs button.on { color: var(--txt); box-shadow: inset 0 -2px 0 var(--accent); }
+[role="tabpanel"][hidden] { display: none; }
+@media print { [role="tabpanel"][hidden] { display: block !important; } .tabs { display: none; } }
+
+/* segmented controls and switches: one accent */
+.seg button.on { background: var(--panel2); box-shadow: inset 0 -2px 0 var(--accent); }
+.terrain-switch { background: var(--panel2); }
+.terrain-switch button.on { background: var(--nasa-blue); }
+
+/* verdict: quiet panel, colour in the badge and a side rule only */
+.verdict { border: 1px solid var(--line); border-left-width: 4px; background: var(--panel2); border-radius: 10px; padding: 14px 16px; }
+.verdict.go { border-color: var(--line); border-left-color: var(--go); background: var(--panel2); }
+.verdict.caution { border-color: var(--line); border-left-color: var(--caution); background: var(--panel2); }
+.verdict.nogo { border-color: var(--line); border-left-color: var(--nogo); background: var(--panel2); }
+.verdict-badge { font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.verdict-head { font-weight: 600; }
+.terrain-flag { border: 1px solid var(--line); color: var(--muted); font-weight: 600; }
+.flip { border: 1px solid var(--line); background: var(--panel2); }
+.flip-title { font-size: 16px; font-weight: 600; }
+.flip-chip { border-width: 1.5px; background: var(--panel); }
+.flip-chip strong { display: inline-flex; align-items: center; font-size: 26px; }
+.smooth-vs { border: 1px solid var(--line); background: var(--panel2); }
+
+/* cards: grey labels; red only when a limit is broken */
+.metric { background: var(--panel2); border-color: var(--line); }
+.metric-label, .metric.sun .metric-label, .metric.earth .metric-label { color: var(--muted); font-weight: 600; letter-spacing: .05em; }
+.metric.bad .metric-label { color: var(--nogo); }
+.metric-value { font-size: 22px; }
+.group-head { color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: .07em; }
+
+/* time bar and progress: neutral, accent blue */
+.timebar { background: rgba(11,11,13,.94); }
+.timebar input[type=range] { accent-color: var(--accent); }
+.tb-btn.play { background: var(--nasa-blue); border-color: var(--nasa-blue); color: #fff; }
+input[type="range"] { accent-color: var(--accent); }
+.sim-headline { border-width: 1px; border-left-width: 4px; background: var(--panel2); }
+.notice { border-left-color: var(--caution); }
+.compare tr.current { background: rgba(40,139,255,.08); }
+.panel.constraints { padding: 0; }
+.metric-label { display: flex; align-items: flex-start; gap: 2px; }
+.metric-label .tip { flex: none; margin-top: 1px; }

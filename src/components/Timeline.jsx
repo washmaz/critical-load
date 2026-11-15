@@ -22,7 +22,7 @@ function laneSegments(t, vals, i0, i1, margin, x) {
   return segs;
 }
 
-export default function Timeline({ series, i0, i1, margin, scrubMs, onScrub }) {
+function Timeline({ series, i0, i1, margin, scrubMs, onScrub }) {
   const ref = useRef(null);
   const { t, sunAlt, earthAlt } = series;
   const sunClear = series.sunClear || sunAlt, earthClear = series.earthClear || earthAlt;
@@ -103,3 +103,5 @@ function niceTicks(lo, hi) {
   if (!out.includes(0) && lo < 0 && hi > 0) out.push(0);
   return out;
 }
+
+export default React.memo(Timeline);
