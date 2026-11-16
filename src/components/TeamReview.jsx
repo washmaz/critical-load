@@ -31,14 +31,26 @@ const HELP = {
 const VERDICT_KEYS = new Set(['stayDays', 'slipDays', 'batteryHours', 'commsGapHours', 'relay']);
 export const ROLE_TEAMS = { all: Object.keys(TEAMS), planning: ['mission'], power: ['power'], comms: ['comms'], landing: ['landing'], thermal: ['thermal'], science: ['science'] };
 
-export function TeamModules({ role = 'all', inp, setField }) {
+export function teamSummary(t, inp) {
+  const x = inp[t];
+  const w = t === 'thermal' ? 'pass/fail' : `weight ${x.weight}`;
+  if (t === 'mission') return `Stay ${x.stayDays} d · within ${x.poleWithinDeg ?? '–'}° of pole · ${w}`;
+  if (t === 'power') return `Battery ${x.batteryHours} h · arrays ${x.panelHeightM} m · ${w}`;
+  if (t === 'comms') return `Gap ${x.commsGapHours} h · ${x.relay ? 'relay' : 'no relay'} · ${w}`;
+  if (t === 'landing') return `Slope ${x.slopeMaxDeg}° · ellipse ${x.radiusM} m · ${w}`;
+  if (t === 'thermal') return x.minAvgK == null && x.maxSurfaceK == null ? 'No limits set · pass/fail' : `min ${x.minAvgK ?? '–'} K · max ${x.maxSurfaceK ?? '–'} K`;
+  return `Water ice nearby · ${w}`;
+}
+
+export function TeamModules({ role = 'all', inp, setField, collapsible = false }) {
   const teams = ROLE_TEAMS[role] || ROLE_TEAMS.all;
   const num = (v) => (v === '' || v == null ? null : +v);
   return (
     <div className="modules">
       {teams.map((t) => (
-        <fieldset key={t} className="module">
-          <legend>{TEAMS[t].label}</legend>
+        <details key={t} className="module" open={collapsible ? undefined : true}>
+          <summary><span className="mod-name">{TEAMS[t].label}</span><span className="mod-sum">{teamSummary(t, inp)}</span></summary>
+          <div className="mod-body">
           <p className="module-sub">Ranked on: {TEAMS[t].criterion.charAt(0).toLowerCase() + TEAMS[t].criterion.slice(1)}.</p>
           {FIELDS[t].filter(([k]) => k !== 'slipDays').map(([k, label]) => (
             <div key={k} className="mod-field">
@@ -69,7 +81,8 @@ export function TeamModules({ role = 'all', inp, setField }) {
                 <div className="t2-scale"><span>0 · ignore</span><span>5 · counts most</span></div>
               </div>
             : <p className="mod-help">Pass or fail only, no weight: NASA publishes no temperature limit for landing sites.</p>}
-        </fieldset>
+          </div>
+        </details>
       ))}
     </div>
   );
