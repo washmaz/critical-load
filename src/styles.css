@@ -1044,3 +1044,41 @@ details.module[open] > summary::before { transform: rotate(90deg); }
 .about-pdf { display: inline-flex; align-items: center; margin-top: 18px; padding: 10px 16px; border-radius: 10px; background: var(--nasa-blue, #2f8bff); color: #fff; font-weight: 600; text-decoration: none; }
 .about-pdf:hover { filter: brightness(1.1); }
 .tr-bars li { grid-template-columns: 24px minmax(160px, 320px) 1fr 40px auto; }
+
+/* ==== v2.4: header typography; Moon controls: map type + layers top left, navigation bottom right; ellipse hierarchy ==== */
+.appbar .brand { display: flex; flex-direction: column; gap: 3px; padding: 14px 0 10px; }
+.brand-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.appbar .brand-name { margin: 0; font-size: 21px; line-height: 1.2; font-weight: 700; letter-spacing: -0.015em; color: #fff; }
+.brand-team { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #8ab4ff; border: 1px solid rgba(138,180,255,.35); border-radius: 999px; padding: 2px 8px; }
+.appbar .brand-sub { margin: 0; font-size: 13.5px; line-height: 1.4; color: #a1a1aa; max-width: 760px; }
+.appbar .tabs2 { margin-top: 2px; }
+/* top-left: map type + layers */
+.stage-bg .globe-tools { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; max-width: none; right: auto; }
+.layers { position: relative; }
+.layers-btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; font-size: 13px; background: rgba(12,12,15,.8); backdrop-filter: blur(8px); border: 1px solid var(--line2); border-radius: 8px; color: var(--txt); white-space: nowrap; }
+.layers-menu { position: absolute; top: 42px; left: 0; z-index: 20; min-width: 180px; display: flex; flex-direction: column; padding: 4px; background: rgba(20,20,24,.96); border: 1px solid var(--line2); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.layers-menu button { text-align: left; background: transparent; border: 0; height: 36px; padding: 0 10px; border-radius: 6px; font-size: 13px; color: var(--txt); }
+.layers-menu button:hover { background: rgba(255,255,255,.06); }
+.layers-menu button.on { color: #fff; background: rgba(47,139,255,.25); }
+/* bottom-right: navigation, Google Maps style */
+.globe-nav { position: absolute; right: 12px; bottom: 12px; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.globe-nav > button { height: 34px; padding: 0 12px; font-size: 13px; background: rgba(12,12,15,.82); backdrop-filter: blur(8px); border: 1px solid var(--line2); border-radius: 8px; white-space: nowrap; }
+.zoom-v { display: flex; flex-direction: column; background: rgba(12,12,15,.82); backdrop-filter: blur(8px); border: 1px solid var(--line2); border-radius: 8px; overflow: hidden; }
+.zoom-v button { width: 38px; height: 38px; padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 20px; line-height: 1; color: var(--txt); }
+.zoom-v button + button { border-top: 1px solid var(--line2); }
+.zoom-v button:hover { background: rgba(255,255,255,.07); }
+.stage-bg .globe-nav { right: 248px; bottom: 16px; }
+/* landing ellipse: the setup panel leads, the outputs column is narrower */
+.sim2-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.sim2-form { max-width: none; flex: none; }
+.sim2-out { flex: none; }
+.sim2-form .sim2-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sim2-form .sim2-folds { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
+@media (max-width: 900px) {
+  .sim2-cols { grid-template-columns: minmax(0, 1fr); }
+  .sim2-form .sim2-folds, .sim2-form .sim2-stack { grid-template-columns: minmax(0, 1fr); }
+  .stage-bg .globe-nav { right: 12px; bottom: 12px; }
+  .brand-team { display: none; }
+}
+.globe-nav > button { width: 100%; }
+.sim2-out .assumptions > summary { font-size: 14px; font-weight: 600; color: var(--txt2, #d4d4d8); }

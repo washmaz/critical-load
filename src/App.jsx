@@ -275,8 +275,8 @@ export default function App() {
       <a className="skip" href="#answer">Skip to the answer</a>
       <header className="appbar">
         <div className="brand">
-          <h1 className="brand-name">Lunar Landing Site Navigator</h1>
-          <span className="brand-sub">Critical Load · sunlight for power and line of sight to Earth over the whole stay, from NASA LRO terrain and JPL ephemerides</span>
+          <div className="brand-row"><h1 className="brand-name">Lunar Landing Site Navigator</h1><span className="brand-team">Team Critical Load</span></div>
+          <p className="brand-sub">Sunlight for power and line of sight to Earth over the whole surface stay, from NASA LRO terrain and JPL ephemerides.</p>
         </div>
         <nav className="tabs2" role="tablist" aria-label="Views">
           {TABS.map((t) => (

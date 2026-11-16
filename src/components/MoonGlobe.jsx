@@ -45,6 +45,7 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
   const customRef = useRef(null);
   const api = useRef(null);
   const [layer, setLayer] = useState('moonkit');
+  const [layersOpen, setLayersOpen] = useState(false);
   const [hoverId, setHoverId] = useState(null);
   const [failed, setFailed] = useState(null);
   const [loadPct, setLoadPct] = useState(0);
@@ -405,16 +406,22 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
         </div>
         <div className="globe-tools">
           {lead}
-          <div className="seg" role="group" aria-label="Globe imagery">
-            {Object.entries(LAYERS).map(([k, v]) => <button key={k} className={layer === k ? 'on' : ''} aria-pressed={layer === k} onClick={() => setLayer(k)}>{v.label}</button>)}
+          <div className="layers">
+            <button className="layers-btn" aria-expanded={layersOpen} aria-haspopup="true" onClick={() => setLayersOpen((x) => !x)} title="Map imagery">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8.5 12 14l10-5.5L12 3Z M2 13l10 5.5L22 13 M2 17.5 12 23l10-5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+              <span>{LAYERS[layer].label}</span>
+            </button>
+            {layersOpen && <div className="layers-menu" role="menu">
+              {Object.entries(LAYERS).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={layer === k} className={layer === k ? 'on' : ''} onClick={() => { setLayer(k); setLayersOpen(false); }}>{v.label}</button>)}
+            </div>}
           </div>
-          <div className="globe-btns">
+        </div>
+        <div className="globe-nav" role="group" aria-label="Map navigation">
+          <button onClick={() => go(-89, api.current ? api.current.view.lon : 0)} title="Look straight at the south pole">South pole</button>
+          {(cur || custom) && <button onClick={() => { const t = cur || custom; api.current && api.current.flyTo(t.lat, t.lon, Math.abs(t.lat) > 80 ? 1.35 : 2.2); }} title="Fly back to the selected site">Selected site</button>}
+          <div className="zoom-v">
             <button onClick={() => api.current && api.current.zoom(0.75)} aria-label="Zoom in" title="Zoom in">+</button>
             <button onClick={() => api.current && api.current.zoom(1.33)} aria-label="Zoom out" title="Zoom out">−</button>
-          </div>
-          <div className="globe-views" role="group" aria-label="Jump to">
-            <button onClick={() => go(-89, api.current ? api.current.view.lon : 0)}>South pole</button>
-            {(cur || custom) && <button onClick={() => { const t = cur || custom; api.current && api.current.flyTo(t.lat, t.lon, Math.abs(t.lat) > 80 ? 1.35 : 2.2); }}>Selected site</button>}
           </div>
         </div>
         {loadPct > 0 && loadPct < 100 && <div className="globe-load" aria-hidden="true"><div style={{ width: `${loadPct}%` }} /></div>}
