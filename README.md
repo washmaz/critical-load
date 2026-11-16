@@ -76,6 +76,7 @@ Without the app, a planner checking one landing site and date pulls ephemerides,
 - **Terrain detail:** sites north of 80°S use a smooth-Moon horizon, and the app says so. Boulders smaller than 5 m are not modelled, nor anything smaller than 80 m outside NASA's 27 high-resolution site maps. The horizon starts 240 m out, so a dip smaller than that is invisible. Example: NASA flags the exact Connecting ridge pixel as permanently shadowed, while our model says about 60 % sunlit; the verdict is NO-GO either way.
 - **Visibility** uses the centre of the Sun's or Earth's disc (plus the margin). The live fallback engine ignores light-time and aberration (< 0.01°); the JPL DE421 tables include them.
 - **Our settings, not NASA's:** stay length, the 48 h comms gap and team weights. NASA states no probability for "land within 100 m", so we assume 99.7 %. Our strict 6° rule can mark parts of NASA's own candidate regions NO-GO (Cabeus B spans 5.94–6.79°). The VSAT 9.75 m mast height comes from trade press.
+- **Battery setting differs between two screens:** the single-site verdict (and the locked demo) assumes the lander can ride out up to 48 h of darkness on batteries; the Team review ranking's power criterion uses 0 h (sunlit the whole stay). So the ranking is stricter on power than the verdict. Checked in the code on main; not changed before judging.
 - **Not modelled:**
   - launch windows and trajectories
   - lighting along the approach path (only at touchdown)
