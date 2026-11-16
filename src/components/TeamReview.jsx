@@ -114,7 +114,7 @@ function TeamReview({ sites, landing, marginDeg, onLoad, role, inp, setInp, setF
       </div>
       <details className="more-row team2-criteria">
         <summary><span className="more-t">Criteria and weights</span><span className="more-s">{Object.keys(TEAMS).map((t) => `${TEAMS[t].label.split(' ')[0]} ${t === 'thermal' ? '–' : inp[t].weight}`).join(' · ')}</span></summary>
-        <TeamModules role={role} inp={inp} setField={setField} />
+        <TeamModules role={role} inp={inp} setField={setField} collapsible />
       </details>
       <details className="more-row team2-criteria">
         <summary><span className="more-t">Custom criteria</span><span className="more-s">{(inp.custom || []).length ? `${inp.custom.length} added` : 'For anything a team needs judged that has no NASA dataset'}</span></summary>
@@ -131,6 +131,8 @@ function TeamReview({ sites, landing, marginDeg, onLoad, role, inp, setInp, setF
   );
 }
 
+const TEAM_NAMES = ['Mission planning', 'Power', 'Communications', 'Landing', 'Thermal', 'Science'];
+
 function CustomCriteria({ inp, setInp, sites }) {
   const list = inp.custom || [];
   const put = (id, patch) => setInp({ ...inp, custom: list.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
@@ -145,7 +147,14 @@ function CustomCriteria({ inp, setInp, sites }) {
         <div key={c.id} className="criterion">
           <div className="criterion-head">
             <label className="team-field">Name <input type="text" value={c.name} placeholder="e.g. Boulder density" onChange={(e) => put(c.id, { name: e.target.value })} /></label>
-            <label className="team-field">Owning team <input type="text" value={c.owner} placeholder="e.g. Science" onChange={(e) => put(c.id, { owner: e.target.value })} /></label>
+            <label className="team-field">Owning team
+              <select value={TEAM_NAMES.includes(c.owner) ? c.owner : (c.owner ? 'Other' : '')} onChange={(e) => put(c.id, { owner: e.target.value === 'Other' ? (TEAM_NAMES.includes(c.owner) || !c.owner ? 'Other' : c.owner) : e.target.value })}>
+                <option value="">Choose a team</option>
+                {TEAM_NAMES.map((n) => <option key={n} value={n}>{n}</option>)}
+                <option value="Other">Other</option>
+              </select>
+              {c.owner && !TEAM_NAMES.includes(c.owner) && <input type="text" value={c.owner === 'Other' ? '' : c.owner} placeholder="Team name" onChange={(e) => put(c.id, { owner: e.target.value || 'Other' })} />}
+            </label>
             <label className="team-field">Type
               <select value={c.kind} onChange={(e) => put(c.id, { kind: e.target.value, values: {} })}>
                 <option value="score">Score 0–100</option><option value="pass">Pass / fail</option>
@@ -175,38 +184,75 @@ function CustomCriteria({ inp, setInp, sites }) {
 function TeamResult({ res, onLoad }) {
   const { ev, sen } = res, keys = Object.keys(ev.labels);
   const name = (id) => (ev.rows.find((r) => r.site.id === id) || {}).site?.name || id;
+  const pass = ev.rows.filter((r) => !r.fails.length), fail = ev.rows.filter((r) => r.fails.length);
+  const top = pass[0];
+  const maxScore = Math.max(1e-9, ...ev.rows.map((r) => r.score));
+  const strengths = (r) => keys.filter((k) => r.teams[k] && r.teams[k].score != null && !r.teams[k].unrated)
+    .sort((a, b) => r.teams[b].score - r.teams[a].score).slice(0, 2).map((k) => `${ev.labels[k]} (${(100 * r.teams[k].score).toFixed(0)}%)`);
+  const failWhy = (r) => keys.filter((k) => r.teams[k] && !r.teams[k].unrated && !r.teams[k].pass).map((k) => `${ev.labels[k]}: ${r.teams[k].why}`);
+  const rowByName = (n) => ev.rows.find((r) => r.site.name === n);
+  const changed = sen.cases.filter((c) => !c.same);
   return (
-    <div className="team-result">
-      <table className="sim-table team-table">
-        <thead><tr><th>#</th><th>Site</th><th>Score</th>{keys.map((k) => <th key={k}>{ev.labels[k]}</th>)}<th /></tr></thead>
-        <tbody>{(() => {
-          const pass = ev.rows.filter((r) => !r.fails.length), fail = ev.rows.filter((r) => r.fails.length);
-          const row = (r, rank) => (
-            <tr key={r.site.id} className={r.fails.length ? 'excluded' : ''}>
-              <td>{rank}</td><td>{r.site.name}</td><td className="mono">{r.fails.length ? <span className="muted">({r.score.toFixed(3)})</span> : r.score.toFixed(3)}</td>
-              {keys.map((k) => { const v = r.teams[k]; return (
-                <td key={k} className={`mono small ${v.unrated ? '' : v.pass ? 'ok' : 'bad'}`} title={v.why}>{v.unrated ? '–' : v.pass ? '✓' : '✗'}{v.score != null ? ` ${(100 * v.score).toFixed(0)}%` : ''}<br /><span className="muted">{v.why}</span></td>); })}
-              <td>{onLoad && <button onClick={() => onLoad(r.site)}>Load</button>}</td>
-            </tr>);
-          return [
-            <tr key="h-pass" className="team-group"><td colSpan={keys.length + 4}>{pass.length ? `Pass every team's limits (${pass.length}), ranked by weighted score` : 'No site passes every team\'s limits'}</td></tr>,
-            ...pass.map((r, i) => row(r, i + 1)),
-            ...(fail.length ? [<tr key="h-fail" className="team-group"><td colSpan={keys.length + 4}>Fail at least one limit ({fail.length}): not ranked; score shown in brackets for reference only</td></tr>] : []),
-            ...fail.map((r) => row(r, '–')),
-          ];
-        })()}</tbody>
-      </table>
-      <h3>Where the teams disagree</h3>
-      <ul className="small">
-        {Object.entries(ev.favourites).map(([k, id]) => <li key={k}><strong>{ev.labels[k]}</strong> prefers {name(id)}</li>)}
-        {ev.unrated.map((u) => <li key={u.name}><strong>{u.name}</strong> not rated for {u.sites.join(', ')} (left out of that criterion)</li>)}
-        {ev.clashes.map((c) => <li key={c.site}><strong>{c.site}</strong>: passes {c.passedBy.join(', ')}; rejected by {c.failedBy.join(', ')}</li>)}
+    <div className="team-result tr2">
+      {top ? (
+        <div className="tr-win">
+          <span className="tr-win-k">Best site for your criteria</span>
+          <h3>{top.site.name}</h3>
+          <p>Passes every team's limits{strengths(top).length ? `; strongest on ${strengths(top).join(' and ')}` : ''}.</p>
+          {onLoad && <button className="primary" onClick={() => onLoad(top.site)}>Open this site</button>}
+        </div>
+      ) : (
+        <div className="tr-win none"><span className="tr-win-k">No site passes every team's limits</span>
+          <p>Every site fails at least one team. See why below, or relax the limit that fails most often.</p></div>
+      )}
+
+      <h3 className="tr-h">Ranking</h3>
+      <ol className="tr-bars">
+        {pass.map((r, i) => (
+          <li key={r.site.id}>
+            <span className="tr-rank">{i + 1}</span>
+            <span className="tr-name">{r.site.name}</span>
+            <span className="tr-bar"><i style={{ width: `${(100 * r.score) / maxScore}%` }} /></span>
+            <span className="tr-score">{(100 * r.score).toFixed(0)}</span>
+            {onLoad && <button className="linkbtn" onClick={() => onLoad(r.site)}>Open</button>}
+          </li>))}
+      </ol>
+      {fail.length > 0 && <>
+        <h3 className="tr-h">Not ranked: fail a team limit</h3>
+        <ul className="tr-fails">
+          {fail.map((r) => <li key={r.site.id}><b>{r.site.name}</b> · {failWhy(r).join(' · ') || 'fails a limit'}</li>)}
+        </ul>
+      </>}
+
+      <h3 className="tr-h">Where the teams disagree</h3>
+      <ul className="tr-sent">
+        {ev.clashes.map((c) => { const r = rowByName(c.site); const why = r ? failWhy(r) : [];
+          return <li key={c.site}><b>{c.site}</b> works for {c.passedBy.join(', ')}, but {c.failedBy.join(' and ')} {c.failedBy.length > 1 ? 'reject' : 'rejects'} it{why.length ? ` (${why.join('; ')})` : ''}.</li>; })}
+        {Object.entries(ev.favourites).map(([k, id]) => <li key={k}><b>{ev.labels[k]}</b> would pick {name(id)}.</li>)}
+        {ev.unrated.map((u) => <li key={u.name}><b>{u.name}</b> is not rated for {u.sites.join(', ')}, so those sites are left out of it.</li>)}
+        {!ev.clashes.length && !Object.keys(ev.favourites).length && <li>No clashes: the teams agree.</li>}
       </ul>
-      <h3>Sensitivity <span className="muted small">does the winner survive reasonable input changes?</span></h3>
-      <p className="small">Top site <strong>{sen.baseTop}</strong>{sen.baseTopPasses ? '' : ' (fails at least one team: no site passes every limit)'} stays on top in <strong>{sen.stablePct.toFixed(0)}%</strong> of {sen.cases.length} one-at-a-time changes (limits ×0.75 / ×1.25, weights ×0.5 / ×1.5).</p>
-      {sen.cases.some((c) => !c.same) && <ul className="small">{sen.cases.filter((c) => !c.same).map((c) => <li key={c.label}>{c.label} → {c.top} on top</li>)}</ul>}
-      <p className="hint small">Method: each site is judged at its target point with the app's power and comms rules (real NASA LOLA terrain horizon at the arrays' height), NASA slope over the chosen baseline, NASA permanent shadow and Diviner data.
-        Sites that fail any team's hard limit are not ranked. This review checks each site's target point (slope over the whole landing area); run the 1,000-touchdown simulation on a site for the full landing-spread check, which can still fail a site that passes here.</p>
+
+      <p className="tr-sens"><b>{sen.stablePct >= 80 ? 'Robust:' : sen.stablePct >= 50 ? 'Fairly robust:' : 'Fragile:'}</b> {sen.baseTop} stays on top in {sen.stablePct.toFixed(0)}% of {sen.cases.length} what-if changes to the limits and weights.</p>
+
+      <details className="more-row">
+        <summary><span className="more-t">Details</span><span className="more-s">Every site per team, and which changes move the winner</span></summary>
+        <div className="tr-details">
+          {changed.length > 0 && <><p className="small">Changes that put a different site on top (limits ×0.75 / ×1.25, weights ×0.5 / ×1.5):</p>
+            <ul className="small">{changed.map((c) => <li key={c.label}>{c.label} → {c.top}</li>)}</ul></>}
+          <div className="table-scroll"><table className="sim-table team-table">
+            <thead><tr><th>Site</th><th>Score</th>{keys.map((k) => <th key={k}>{ev.labels[k]}</th>)}</tr></thead>
+            <tbody>{ev.rows.map((r) => (
+              <tr key={r.site.id} className={r.fails.length ? 'excluded' : ''}>
+                <td>{r.site.name}</td><td className="mono">{(100 * r.score).toFixed(0)}</td>
+                {keys.map((k) => { const v = r.teams[k]; return (
+                  <td key={k} className={`small ${v.unrated ? '' : v.pass ? 'ok' : 'bad'}`} title={v.why}>{v.unrated ? '–' : v.pass ? '✓' : '✗'}{v.score != null ? ` ${(100 * v.score).toFixed(0)}%` : ''}<br /><span className="muted">{v.why}</span></td>); })}
+              </tr>))}</tbody>
+          </table></div>
+          <p className="hint small">Each site is judged at its target point with the app's power and comms rules (NASA LOLA terrain horizon at the arrays' height), NASA slope, permanent shadow and Diviner data.
+            Sites that fail any team's hard limit are not ranked. Run the touchdown simulation for the full landing-spread check.</p>
+        </div>
+      </details>
     </div>
   );
 }

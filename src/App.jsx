@@ -95,7 +95,20 @@ export default function App() {
   // Team criteria (one source of truth). Limits that also set the verdict (stay, slip, battery, comms gap, relay) live in `s`
   // so the GO / CAUTION / NO-GO answer and the site ranking always use the same numbers.
   const [openStep, setOpenStep] = useState(1);
+  const [focusKey, setFocusKey] = useState(0);
+  const [tour, setTour] = useState(null);
   useEffect(() => {
+    const onEsc = (e) => { if (e.key === 'Escape') { setShowAbout(false); setTour(null); } };
+    window.addEventListener('keydown', onEsc); return () => window.removeEventListener('keydown', onEsc);
+  }, []);
+  useEffect(() => {
+    const h = document.querySelector('.appbar'); if (!h || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--hdr', `${h.offsetHeight}px`));
+    ro.observe(h); return () => ro.disconnect();
+  }, []);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) { firstStep.current = false; return; }
     const el = document.querySelector('.acc.open');
     if (el && el.offsetParent) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [openStep]);
@@ -209,6 +222,7 @@ export default function App() {
   const pickPoint = useCallback((lat, lon) => { setCustomDraft({ lat: String(lat), lon: String(lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: lat, customLon: lon, place: null }); }, [set]);
   const pickSite = useCallback((id) => set({ siteId: id, place: null }), [set]);
   const onSiteSelect = (v) => {
+    setFocusKey((k) => k + 1);
     if (v.startsWith('place:')) {
       const pl = placeById(v.slice(6));
       if (pl) { setCustomDraft({ lat: String(pl.lat), lon: String(pl.lon) }); setCustomErr(null); set({ siteId: 'custom', customLat: pl.lat, customLon: pl.lon, place: pl.id }); }
@@ -216,7 +230,9 @@ export default function App() {
   };
   const pickTime = useCallback((t) => set({ landing: t }), [set]);
   const simPick = useCallback((lat, lon) => { pickPoint(lat, lon); set({ tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [pickPoint, set]);
-  const teamLoad = useCallback((x) => { if (x.id === 'custom') return; set({ siteId: x.id, place: null, tab: 'answer' }); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [set]);
+  // Open a site on the Overview: fly the Moon to it and show its answer step.
+  const openSite = useCallback((id) => { setBack(null); setFocusKey((k) => k + 1); setOpenStep(3); set({ siteId: id, place: null, tab: 'answer', map: 'globe' }); window.scrollTo({ top: 0 }); }, [set]);
+  const teamLoad = useCallback((x) => { if (x.id === 'custom') return; openSite(x.id); }, [openSite]);
   const teamSites = useMemo(() => [...SITES.filter((x) => inTileCoverage(x.lat, x.lon)), ...(site.id === 'custom' && inTileCoverage(site.lat, site.lon) ? [shownBase] : [])], [site, shownBase]);
   const teamAll = useMemo(() => ({ ...teamInp,
     mission: { ...teamInp.mission, stayDays: s.missionDays, slipDays: s.slipDays },
@@ -248,6 +264,10 @@ export default function App() {
  const ephemLine = ephemStatus.state === 'ready'
     ? `JPL DE421 table, cross-checked live (max difference ${ephemStatus.check ? ephemStatus.check.maxDiffDeg.toFixed(3) : '0.01'}°)`
     : 'live calculation (DE421 table unavailable)';
+  const MAP_SWITCH = (<div className="seg map-tabs" role="tablist" aria-label="Map type">
+                  <button role="tab" aria-selected={s.map === 'globe'} className={s.map === 'globe' ? 'on' : ''} onClick={() => set({ map: 'globe' })}>3D Moon</button>
+                  <button role="tab" aria-selected={s.map === 'polar'} className={s.map === 'polar' ? 'on' : ''} onClick={() => set({ map: 'polar' })}>South pole map</button>
+                </div>);
   const scenarioLine = `${site.name} · ${fmtUTC(s.landing)} · ${stayTxt}-day stay · slip ±${s.slipDays} d`;
 
   return (
@@ -255,23 +275,31 @@ export default function App() {
       <a className="skip" href="#answer">Skip to the answer</a>
       <header className="appbar">
         <div className="brand">
-          <span className="brand-name">Critical Load</span>
-          <span className="brand-sub">Lunar Landing Site Navigator</span>
+          <h1 className="brand-name">Lunar Landing Site Navigator</h1>
+          <span className="brand-sub">Critical Load · sunlight for power and line of sight to Earth over the whole stay, from NASA LRO terrain and JPL ephemerides</span>
         </div>
         <nav className="tabs2" role="tablist" aria-label="Views">
           {TABS.map((t) => (
             <button key={t.id} role="tab" id={`tab-${t.id}`} aria-selected={s.tab === t.id} aria-controls={`view-${t.id}`}
-              className={s.tab === t.id ? 'on' : ''} onClick={() => { setBack(null); set({ tab: t.id }); }}>{t.label}</button>
+              className={s.tab === t.id ? 'on' : ''} onClick={() => { setBack(null); setShowAbout(false); setTour(null); set({ tab: t.id }); window.scrollTo({ top: 0 }); }}>{t.label}</button>
           ))}
         </nav>
         <a href="#answer" className={`mini-verdict ${statusClass(v.status)}`} title="Jump to the answer" onClick={(e) => { e.preventDefault(); setBack(null); set({ tab: 'answer' }); setOpenStep(3); window.scrollTo({ top: 0 }); }}><VerdictIcon status={v.status} />{v.status}</a>
         <div className="appbar-actions">
-          <button onClick={backToDemo} title="Connecting ridge, 15 Nov 2026 21:00 UTC, starting on the smooth Moon">Load demo</button>
-          <button onClick={() => setShowAbout((x) => !x)} aria-expanded={showAbout}>{showAbout ? 'Close' : 'How it works'}</button>
+          <button onClick={() => { setShowAbout(false); backToDemo(); setTour(0); }} title="A four-step guided example: Connecting ridge, 15 Nov 2026 21:00 UTC">Load demo</button>
+          <button onClick={() => { setTour(null); setShowAbout(true); }} aria-haspopup="dialog">How it works</button>
         </div>
       </header>
 
-      {showAbout && <div className="about-wrap"><About /></div>}
+      {showAbout && <div className="modal-back" onClick={(e) => { if (e.target === e.currentTarget) setShowAbout(false); }}>
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="about-h">
+          <button className="modal-close" onClick={() => setShowAbout(false)} autoFocus>✕ Close</button>
+          <About />
+        </div>
+      </div>}
+      {tour !== null && s.tab === 'answer' && <DemoTour step={tour} status={v.status} terrain={s.terrain} site={site.name}
+        onStep={(n) => { if (n === 2 || n === 3) set({ terrain: n === 3 }); if (n <= 1) set({ terrain: false }); setOpenStep(3); setTour(n); }}
+        onWhy={() => { setTour(null); setOpenStep(4); }} onClose={() => setTour(null)} />}
 
       <main className="layout content">
         {s.tab !== 'answer' && (
@@ -290,18 +318,10 @@ export default function App() {
                 ? <Suspense fallback={<div className="globe-box globe-loading"><p className="hint">Loading the 3D Moon…</p></div>}>
                     <MoonGlobe sites={SITES} statusById={statusById} currentId={s.siteId}
                       custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon, name: place ? place.name : null } : null}
-                      onPick={pickSite} onPickPoint={pickPoint} />
+                      onPick={pickSite} onPickPoint={pickPoint} focusKey={focusKey} currentStatus={v.status} lead={MAP_SWITCH} />
                   </Suspense>
-                : <div className="polar-wrap"><PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon } : null}
-                    onPick={pickSite} onPickPoint={pickPoint} /></div>}
-              <div className="stage-title">
-                <h1>Lunar Landing Site Navigator</h1>
-                <p>Sunlight for power and line of sight to Earth over the whole surface stay, from NASA LRO terrain and JPL ephemerides.</p>
-                <div className="seg map-tabs" role="tablist" aria-label="Map type">
-                  <button role="tab" aria-selected={s.map === 'globe'} className={s.map === 'globe' ? 'on' : ''} onClick={() => set({ map: 'globe' })}>3D Moon</button>
-                  <button role="tab" aria-selected={s.map === 'polar'} className={s.map === 'polar' ? 'on' : ''} onClick={() => set({ map: 'polar' })}>South pole map</button>
-                </div>
-              </div>
+                : <><div className="stage-controls">{MAP_SWITCH}</div><div className="polar-wrap"><PolarMap rows={compareRows} currentId={s.siteId} custom={s.siteId === 'custom' ? { lat: baseSite.lat, lon: baseSite.lon } : null}
+                    onPick={pickSite} onPickPoint={pickPoint} /></div></>}
             </div>
 
             <div className="stage-panel">
@@ -500,11 +520,11 @@ export default function App() {
               <h2>Compare sites for this landing time</h2>
               <p className="sub">Every preset site with the same date, stay and limits. Click a row to load it.</p>
             </div>
-            <SiteCompare rows={compareRows} currentId={s.siteId} onPick={pickSite} landing={s.landing} opts={opts} />
+            <SiteCompare rows={compareRows} currentId={s.siteId} onPick={pickSite} onOpen={openSite} landing={s.landing} opts={opts} />
           </section>
         </div>
 
-        <footer className="foot2">Not a NASA product; no NASA insignia used. Data, method and sources: <button className="linkbtn" onClick={() => { setShowAbout(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>How it works</button> · <button className="linkbtn" onClick={() => window.print()}>Print or save as PDF</button></footer>
+        <footer className="foot2">Not a NASA product; no NASA insignia used. Data, method and sources: <button className="linkbtn" onClick={() => setShowAbout(true)}>How it works</button> · <a href="/critical-load-guide.pdf" target="_blank" rel="noreferrer">Full guide (PDF)</a> · <button className="linkbtn" onClick={() => window.print()}>Print or save as PDF</button></footer>
       </main>
     </div>
   );
@@ -777,7 +797,7 @@ function ScienceFacts({ sci, terrain }) {
         {c && <Metric label="Craters ≥ 1 km within 5 km" value={`${c.countAtLeast1kmWithin5km}`}
           sub={`${c.insideCrater ? `Inside a ${c.insideCrater.diamKm} km crater · ` : ''}nearest crater rim ${c.nearestRimKm} km (Robbins 2019)`} tone={c.nearestRimKm < 0.3 ? 'bad' : 'earth'} />}
       </div>
-      <p className="hint small">NASA's map is an independent check made by NASA Goddard with a different method and time span, so a few % difference is expected; a big gap means the exact spot sits on a steep edge where a few hundred metres matters.</p>
+      <p className="hint small sci-note">NASA's map is an independent check made by NASA Goddard with a different method and time span, so a few % difference is expected; a big gap means the exact spot sits on a steep edge where a few hundred metres matters.</p>
     </div>
   );
 }
@@ -798,29 +818,56 @@ function CustomCraterNote({ craters, lat, lon, terrain }) {
 
 function About() {
   return (
-    <section className="panel about">
-      <h2>How it works</h2>
-      <ol>
-        <li><strong>Positions.</strong> For each time, we compute where the Sun and Earth sit in the sky at the site (elevation above the horizon, compass direction), using the IAU model of the Moon's orientation, including its wobble (libration).</li>
-        <li><strong>Windows.</strong> We sample every hour of the mission and find when the Sun is up (power) and Earth is up (direct radio link).</li>
-        <li><strong>Real terrain.</strong> At the south pole the Sun and Earth skim the horizon, so hills decide everything. For the polar sites we use NASA's LOLA laser-altimeter elevation map to find how high the terrain rises in every compass direction, and a body only counts as up when it clears that.</li>
-        <li><strong>Margin.</strong> Near the horizon we don't trust a yes/no answer, so anything within ±margin of the horizon is “marginal” and is not counted as available.</li>
-        <li><strong>Verdict.</strong> Power is the deal-breaker: if the longest dark stretch is longer than the battery can survive, it's NO-GO. Comms gaps can be fixed with a relay satellite, so they give CAUTION.</li>
-        <li><strong>Slip window.</strong> We repeat everything for every possible landing time in your uncertainty window and recommend the strongest dates.</li>
+    <section className="about">
+      <h2 id="about-h">How it works</h2>
+      <ol className="about-steps">
+        <li><b>Pick a site and a landing time.</b> Any point on the Moon, plus the time uncertainty.</li>
+        <li><b>Find the Sun and Earth.</b> JPL DE421 ephemeris gives their position in the site's sky for every hour of the stay.</li>
+        <li><b>Add the real horizon.</b> Near the south pole, NASA LRO LOLA terrain (80 m) decides whether hills block them.</li>
+        <li><b>Check the team limits.</b> Longest dark stretch vs battery, longest comms gap vs limit, slope vs lander limit.</li>
+        <li><b>Give the verdict.</b> NO-GO if the battery runs out, CAUTION if Earth is out of view too long, otherwise GO.</li>
       </ol>
-      <h3>Data sources</h3>
-      <ul className="sources">
-        <li><strong>Terrain, slope, ice traps:</strong> NASA LRO LOLA south-pole maps, 80 m (Barker et al. 2023, PSJ 4, 183) · <a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">NASA PGDA</a></li>
-        <li><strong>Sunlight and Earth-visibility check:</strong> {SCIENCE_SOURCES.nasaIllumination}</li>
-        <li><strong>Temperature and ice depth:</strong> {SCIENCE_SOURCES.diviner}</li>
-        <li><strong>Craters:</strong> {SCIENCE_SOURCES.craters}</li>
-        <li><strong>Sun and Earth positions:</strong> JPL DE421 planetary and lunar ephemeris (Folkner et al. 2008, via Skyfield) with astronomy-engine as the live backup; spot checks on <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noreferrer">JPL Horizons</a></li>
-        <li><strong>Artemis III regions:</strong> <a href="https://www.nasa.gov/news-release/nasa-provides-update-on-artemis-iii-moon-landing-regions/" target="_blank" rel="noreferrer">NASA, 28 Oct 2024</a>. NASA does not publish exact points, so each preset is the sunniest spot with slope under 8° in that region's area, picked with NASA data (search area listed under each site).</li>
-      </ul>
-      <h3>Site sources</h3>
-      <ul className="sources">
-        {SITES.map((x) => <li key={x.id}><strong>{x.name}</strong>: <a href={x.url} target="_blank" rel="noreferrer">{x.source}</a></li>)}
-      </ul>
+      <a className="about-pdf" href="/critical-load-guide.pdf" target="_blank" rel="noreferrer">Comprehensive guide (PDF, 22 pages) ↗</a>
+      <p className="about-more">First-pass screening, not a certified tool. Full method, validation and sources:{' '}
+        <a href="https://github.com/washmaz/critical-load/blob/main/METHOD.md" target="_blank" rel="noreferrer">METHOD.md</a>
+        {' · '}<a href="https://github.com/washmaz/critical-load#readme" target="_blank" rel="noreferrer">README</a></p>
+      <details className="about-src">
+        <summary>Data and site sources</summary>
+        <ul className="sources">
+          <li><strong>Terrain, slope, ice traps:</strong> NASA LRO LOLA south-pole maps, 80 m (Barker et al. 2023) · <a href="https://pgda.gsfc.nasa.gov/products/90" target="_blank" rel="noreferrer">NASA PGDA</a></li>
+          <li><strong>Sunlight and Earth-visibility check:</strong> {SCIENCE_SOURCES.nasaIllumination}</li>
+          <li><strong>Temperature and ice depth:</strong> {SCIENCE_SOURCES.diviner}</li>
+          <li><strong>Craters:</strong> {SCIENCE_SOURCES.craters}</li>
+          <li><strong>Sun and Earth positions:</strong> JPL DE421 (Folkner et al. 2008) with astronomy-engine as backup; spot checks on <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noreferrer">JPL Horizons</a></li>
+          {SITES.map((x) => <li key={x.id}><strong>{x.name}</strong>: <a href={x.url} target="_blank" rel="noreferrer">{x.source}</a></li>)}
+        </ul>
+      </details>
     </section>
+  );
+}
+
+const TOUR = [
+  { t: 'The site', d: (p) => `${p.site}: a ridge near the lunar south pole, landing 15 Nov 2026 at 21:00 UTC for a 7-day stay.` },
+  { t: 'Smooth Moon', d: (p) => `Treating the Moon as a smooth ball, the answer is ${p.status}: full sunlight, but long gaps with no line of sight to Earth.` },
+  { t: 'Add real terrain', d: () => 'Now switch the horizon to real NASA LRO LOLA terrain, the hills and ridges around the site.' },
+  { t: 'The flip', d: (p) => `With real terrain it is ${p.status}: the surrounding terrain hides the Sun, so the lander would run out of battery. The smooth model missed it.` },
+];
+function DemoTour({ step, status, site, onStep, onWhy, onClose }) {
+  const x = TOUR[step];
+  return (
+    <aside className="tour" role="dialog" aria-label="Demo tour" aria-live="polite">
+      <div className="tour-top">
+        <span className="tour-n">Demo · step {step + 1} of {TOUR.length}</span>
+        <button className="tour-close" onClick={onClose} aria-label="Close the demo">✕ Close</button>
+      </div>
+      <h3>{x.t}</h3>
+      <p>{x.d({ status, site })}</p>
+      <div className="tour-btns">
+        {step > 0 && <button onClick={() => onStep(step - 1)}>Back</button>}
+        {step === 2 && <button className="primary" onClick={() => onStep(3)}>Switch to Real NASA terrain</button>}
+        {step < 2 && <button className="primary" onClick={() => onStep(step + 1)}>Next</button>}
+        {step === 3 && <button className="primary" onClick={onWhy}>See why: sky plot</button>}
+      </div>
+    </aside>
   );
 }

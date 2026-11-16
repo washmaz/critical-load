@@ -27,7 +27,10 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const [mode, setMode] = useState('check');
   const [nRuns, setNRuns] = useState(1000);
   const [presetId, setPresetId] = useState('nasa-artemis3');
+  // When a preset is edited, the label switches to "My own limits" but every other preset value is kept (inherit).
+  const [inherit, setInherit] = useState(null);   // { from: presetId, edited: Set of keys }
   const P = PRESETS[presetId];
+  const H = presetId === 'custom' && inherit ? PRESETS[inherit.from] : P;   // where the hidden limits come from
   const [acc, setAcc] = useState('strict50');
   const [ell, setEll] = useState({ semiMajorM: 50, semiMinorM: 50, azimuthDeg: 0 });
   const [slopeMax, setSlopeMax] = useState(10);
@@ -39,25 +42,39 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const thermalLimits = (tMin !== '' || tMax !== '') ? { minAvgK: tMin === '' ? null : +tMin, maxSurfaceK: tMax === '' ? null : +tMax } : null;
   const panelM = panelKey === 'custom' ? panelCustom : PANEL_HEIGHTS[panelKey].m;
   const pickAcc = (k) => { setAcc(k); if (ACCURACY[k].semiMajorM) setEll({ semiMajorM: ACCURACY[k].semiMajorM, semiMinorM: ACCURACY[k].semiMinorM, azimuthDeg: 0 }); };
+  const [openShape, setOpenShape] = useState(false);
+  // Editing a real limit of a preset: keep everything, relabel as "My own limits". The touchdown count is not a limit.
+  const edit = (key) => {
+    if (presetId !== 'custom') { setInherit({ from: presetId, edited: new Set([key]) }); setPresetId('custom'); }
+    else if (inherit) setInherit({ ...inherit, edited: new Set([...inherit.edited, key]) });
+  };
+  const choosePreset = (id) => {
+    setInherit(null); setPresetId(id);
+    if (id === 'custom') {   // fresh entry: empty limit boxes
+      setSlopeMax(''); setAcc('custom'); setEll({ semiMajorM: '', semiMinorM: '', azimuthDeg: 0 }); setPanelKey('custom'); setPanelCustom(''); setOpenShape(true);
+      return;
+    }
+    const Q = PRESETS[id];
+    if (Q.slopeMaxDeg != null) setSlopeMax(Q.slopeMaxDeg);
+    if (Q.slopeMode != null) setSlopeMode(Q.slopeMode);
+    if (Q.accuracy) pickAcc(Q.accuracy);
+    if (Q.panelHeight) setPanelKey(Q.panelHeight);
+  };
+  const num = (x) => x !== '' && x != null && Number.isFinite(+x);
+  const missing = [!num(slopeMax) && 'max slope', !(num(ell.semiMajorM) && num(ell.semiMinorM)) && 'ellipse size', panelKey === 'custom' && !num(panelCustom) && 'array height'].filter(Boolean);
   const [run, setRun] = useState(null);       // { done, total, t0 }
   const [res, setRes] = useState(null);
   const [err, setErr] = useState(null);
   const ctrl = useRef(null);
 
-  useEffect(() => {
-    if (P.slopeMaxDeg != null) setSlopeMax(P.slopeMaxDeg);
-    if (P.slopeMode != null) setSlopeMode(P.slopeMode);
-    if (P.accuracy) pickAcc(P.accuracy);
-    if (P.panelHeight) setPanelKey(P.panelHeight);
-  }, [presetId]);
   useEffect(() => { setRes(null); setErr(null); }, [site.lat, site.lon, landing]);
 
   const opts = useMemo(() => ({
     ...appOpts, stepHours: 1, slopeMaxDeg: slopeMax, slopeMode, panelHeightM: panelM, thermalLimits,
-    ...(P.batteryHours != null ? { batteryHours: P.batteryHours } : {}),
-    ...(P.relay != null ? { relay: P.relay } : {}),
-    ...(P.earthMinElevDeg != null ? { earthMinElevDeg: P.earthMinElevDeg } : {}),
-  }), [appOpts, slopeMax, presetId, slopeMode, panelM, tMin, tMax]);
+    ...(H.batteryHours != null ? { batteryHours: H.batteryHours } : {}),
+    ...(H.relay != null ? { relay: H.relay } : {}),
+    ...(H.earthMinElevDeg != null ? { earthMinElevDeg: H.earthMinElevDeg } : {}),
+  }), [appOpts, slopeMax, presetId, inherit, slopeMode, panelM, tMin, tMax]);
 
   const start = async () => {
     setErr(null); setRes(null);
@@ -70,10 +87,10 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
         onProgress: (d, t) => setRun({ done: d, total: t, t0 }), signal: ac.signal,
       });
       const checks = [];
-      if (P.poleWithinDeg != null) checks.push({ label: `Within ${P.poleWithinDeg}° of the pole`, ok: site.lat <= -90 + P.poleWithinDeg, value: `${(90 + site.lat).toFixed(2)}° from the pole` });
-      if (P.evaSlopeDeg != null) {
-        const sh = await evaShare(site.lat, site.lon, P.evaRadiusKm, P.evaSlopeDeg);
-        checks.push({ label: `Moonwalk ground: slope under ${P.evaSlopeDeg}° within ${P.evaRadiusKm} km`, ok: null, value: sh == null ? 'no data' : `${pct(sh, 0)} of the ground (NASA LOLA 80 m)` });
+      if (H.poleWithinDeg != null) checks.push({ label: `Within ${H.poleWithinDeg}° of the pole`, ok: site.lat <= -90 + H.poleWithinDeg, value: `${(90 + site.lat).toFixed(2)}° from the pole` });
+      if (H.evaSlopeDeg != null) {
+        const sh = await evaShare(site.lat, site.lon, H.evaRadiusKm, H.evaSlopeDeg);
+        checks.push({ label: `Moonwalk ground: slope under ${H.evaSlopeDeg}° within ${H.evaRadiusKm} km`, ok: null, value: sh == null ? 'no data' : `${pct(sh, 0)} of the ground (NASA LOLA 80 m)` });
       }
       setRes({ ...out, checks, seconds: (performance.now() - t0) / 1000, opts, ell, presetId });
     } catch (e) { if (e.message !== 'cancelled') setErr(e.message); }
@@ -99,48 +116,50 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
         <div className="sim2-form panel">
           <div className="sec-head"><h3>1 · Start from a lander</h3><p className="sub">Published limits fill the fields below. You can change any of them.</p></div>
           <div className="f"><label htmlFor="preset">Requirements</label>
-            <select id="preset" value={presetId} onChange={(e) => setPresetId(e.target.value)}>
+            <select id="preset" value={presetId} onChange={(e) => choosePreset(e.target.value)}>
               {Object.entries(PRESETS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
             {P.source && <p className="f-help">Source: <a href={P.source.url} target="_blank" rel="noreferrer">{P.source.title}</a></p>}
+            {inherit && <p className="f-help">Started from {PRESETS[inherit.from].label}. Values you changed are marked "Your input" in the assumptions; the rest keep the preset's source.</p>}
+            {presetId === 'custom' && !inherit && <p className="f-help">Enter every limit below. Run unlocks when all boxes have a number.</p>}
           </div>
 
           <div className="sec-head sim2-step"><h3>2 · The choices that matter most</h3></div>
           <div className="f" role="group" aria-labelledby="acc-l"><span id="acc-l" className="f-label">Landing accuracy <span className="muted">(radius holding 99.7% of touchdowns)</span></span>
             <div className="seg2">
               {[['strict50', '50 m'], ['r100', '100 m'], ['custom', 'Custom']].map(([k, t]) => (
-                <button key={k} type="button" aria-pressed={acc === k} className={acc === k ? 'on' : ''} onClick={() => pickAcc(k)}>{t}</button>))}
+                <button key={k} type="button" aria-pressed={acc === k} className={acc === k ? 'on' : ''} onClick={() => { edit('accuracy'); pickAcc(k); if (k === 'custom') setOpenShape(true); }}>{t}</button>))}
             </div>
             <p className="f-help">{acc === 'custom' ? 'Set the half-length and half-width under Ellipse shape.' : ACCURACY[acc].label}</p></div>
           <div className="sim2-stack">
             <div className="f"><label htmlFor="slp">Max slope <span className="muted">(°, 1–45)</span></label>
-              <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} onChange={(e) => setSlopeMax(+e.target.value)} /></div>
+              <input id="slp" type="number" min="1" max="45" step="0.5" value={slopeMax} placeholder="e.g. 10" onChange={(e) => { edit('slopeMaxDeg'); setSlopeMax(e.target.value === '' ? '' : +e.target.value); }} /></div>
             <div className="f"><label htmlFor="pnl">Array height</label>
-              <select id="pnl" value={panelKey} onChange={(e) => setPanelKey(e.target.value)}>
+              <select id="pnl" value={panelKey} onChange={(e) => { edit('panelHeight'); setPanelKey(e.target.value); }}>
                 {Object.entries(PANEL_HEIGHTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
-              {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} aria-label="Custom array height in metres (0–50)" onChange={(e) => setPanelCustom(Math.max(0, Math.min(50, +e.target.value)))} />}
+              {panelKey === 'custom' && <input type="number" min="0" max="50" step="0.1" value={panelCustom} placeholder="metres" aria-label="Custom array height in metres (0–50)" onChange={(e) => { edit('panelHeight'); setPanelCustom(e.target.value === '' ? '' : Math.max(0, Math.min(50, +e.target.value))); }} />}
             </div>
           </div>
           <p className="f-help">Higher solar arrays and antennas see over nearby hills.</p>
 
           <div className="sim2-folds">
-            <details>
+            <details open={openShape} onToggle={(e) => setOpenShape(e.currentTarget.open)}>
               <summary><span>Ellipse shape</span><span className="muted">{accLabel} · axis {ell.azimuthDeg}°</span></summary>
               <div className="sim2-grid3">
                 <div className="f"><label htmlFor="sma">Half-length (m)</label>
-                  <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMajorM: Math.max(1, +e.target.value) }); }} /></div>
+                  <input id="sma" type="number" min="1" max="20000" value={ell.semiMajorM} placeholder="m" onChange={(e) => { edit('accuracy'); setAcc('custom'); setEll({ ...ell, semiMajorM: e.target.value === '' ? '' : Math.max(1, +e.target.value) }); }} /></div>
                 <div className="f"><label htmlFor="smi">Half-width (m)</label>
-                  <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} onChange={(e) => { setAcc('custom'); setEll({ ...ell, semiMinorM: Math.max(1, +e.target.value) }); }} /></div>
+                  <input id="smi" type="number" min="1" max="20000" value={ell.semiMinorM} placeholder="m" onChange={(e) => { edit('accuracy'); setAcc('custom'); setEll({ ...ell, semiMinorM: e.target.value === '' ? '' : Math.max(1, +e.target.value) }); }} /></div>
                 <div className="f"><label htmlFor="saz">Long axis (° from N)</label>
-                  <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /></div>
+                  <input id="saz" type="number" min="0" max="180" value={ell.azimuthDeg} onChange={(e) => { edit('accuracy'); setAcc('custom'); setEll({ ...ell, azimuthDeg: +e.target.value }); }} /></div>
               </div>
               <p className="f-help">Metres, 1–20,000. Same length and width = a circle. Axis 0–180°, clockwise from north.</p>
             </details>
             <details>
               <summary><span>How slope is measured</span><span className="muted">{slopeLabel}</span></summary>
               <div className="f"><label htmlFor="slb">Slope measured over</label>
-                <select id="slb" value={String(slopeMode)} onChange={(e) => setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
+                <select id="slb" value={String(slopeMode)} onChange={(e) => edit('slopeMode') || setSlopeMode(e.target.value === 'ldsm' || e.target.value === 'nasa5m' ? e.target.value : +e.target.value)}>
                   <option value="100">100 m baseline (NASA 5 m elevation where mapped, else 80 m)</option>
                   <option value="nasa5m">Lander footprint: NASA 5 m site map + NASA uncertainty</option>
                   <option value="ldsm">NASA LDSM slope map (80 m pixels)</option>
@@ -152,28 +171,30 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
               <p className="f-help">NASA publishes no pass/fail temperature limit for landing sites, so temperatures are reported only. If your hardware has limits, enter them: a touchdown fails if the LRO Diviner annual-average temperature (2 cm depth) is below your minimum or the yearly maximum is above your maximum.</p>
               <div className="sim2-pair">
                 <div className="f"><label htmlFor="tmin">Lowest average (K, 0–400)</label>
-                  <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => setTMin(e.target.value)} /></div>
+                  <input id="tmin" type="number" min="0" max="400" placeholder="no limit" value={tMin} onChange={(e) => { edit('thermal'); setTMin(e.target.value); }} /></div>
                 <div className="f"><label htmlFor="tmax">Highest maximum (K, 0–500)</label>
-                  <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => setTMax(e.target.value)} /></div>
+                  <input id="tmax" type="number" min="0" max="500" placeholder="no limit" value={tMax} onChange={(e) => { edit('thermal'); setTMax(e.target.value); }} /></div>
               </div>
             </details>
-            {P.notes.length > 0 && <details>
-              <summary><span>What this preset sets</span><span className="muted">{P.notes.length} notes</span></summary>
-              <ul className="sim-notes small">{P.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+            {H.notes.length > 0 && <details>
+              <summary><span>What this preset sets</span><span className="muted">{H.notes.length} notes</span></summary>
+              <ul className="sim-notes small">{H.notes.map((n) => <li key={n}>{n}</li>)}</ul>
             </details>}
           </div>
-          {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
+          {num(ell.semiMinorM) && num(ell.semiMajorM) && +ell.semiMinorM > +ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
           {mode === 'check' && <div className="f"><label htmlFor="nruns">Number of touchdowns <span className="muted">(100–10,000)</span></label>
             <input id="nruns" type="number" min="100" max="10000" step="100" value={nRuns} onChange={(e) => setNRuns(Math.max(100, Math.min(10000, Math.round(+e.target.value) || 1000)))} />
             <p className="f-help">1,000 gives each percentage to about ±3 %. 10,000 gives about ±1 % but takes about 10× longer in your browser.</p></div>}
           {mode === 'check' && <div className="sim-go">
             {run ? <button className="sim2-run" onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
-                 : <button className="primary sim2-run" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run {nRuns.toLocaleString('en-US')} touchdowns</button>}
+                 : <button className="primary sim2-run" onClick={start} disabled={missing.length > 0 || +ell.semiMinorM > +ell.semiMajorM}>Run {nRuns.toLocaleString('en-US')} touchdowns</button>}
+            {missing.length > 0 && <p className="f-help">Fill in: {missing.join(', ')}.</p>}
           </div>}
+          {mode === 'find' && <p className="f-help">Each candidate spot is checked with 1,000 touchdowns (fixed, so the search finishes in minutes).</p>}
         </div>
 
         <div className="sim2-out">
-          {mode === 'find' && <div className="panel"><FindSpot site={site} landing={landing} opts={opts} ell={ell} preset={P} onPickPoint={onPickPoint} /></div>}
+          {mode === 'find' && <div className="panel">{missing.length ? <p className="f-help">Fill in: {missing.join(', ')} to search.</p> : <FindSpot site={site} landing={landing} opts={opts} ell={ell} preset={H} onPickPoint={onPickPoint} />}</div>}
           {mode === 'check' && run && <div className="sim-progress" role="progressbar" aria-valuenow={run.done} aria-valuemax={run.total}>
             <div style={{ width: `${(100 * run.done) / run.total}%` }} />
             <span>{run.done} / {run.total} touchdowns · {((performance.now() - run.t0) / 1000).toFixed(0)} s</span></div>}
@@ -190,7 +211,8 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
               </ul>
             </div>
           )}
-          <Assumptions opts={opts} ell={ell} acc={acc} panelKey={panelKey} panelM={panelM} appOpts={appOpts} preset={P} />
+          <Assumptions opts={opts} ell={ell} acc={acc} panelKey={panelKey} panelM={panelM} appOpts={appOpts}
+            preset={inherit ? Object.fromEntries(Object.entries(PRESETS[inherit.from]).filter(([k]) => !inherit.edited.has(k))) : P} />
         </div>
       </div>
     </section>
