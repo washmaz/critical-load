@@ -110,7 +110,7 @@ Deeper: [METHOD.md](METHOD.md) (every step with sources and validation) · [DATA
 - NASA NTRS 20240009596 (Artemis HLS update, 2024) and NTRS 20250009323 (Artemis HLS overview for Space Apps 2025)
 - Archinal, B. A. et al. (2018), Report of the IAU WGCCRE: 2015
 - De Rosa, D. et al. (2012), Planetary and Space Science 74, 224, arXiv:1208.5587 (ESA preset: 15° slope, 99.7 % landing ellipse, 2 m / 1.2 m array heights)
-- Amitabh et al. (2023), Chandrayaan-3 landing site characterisation, arXiv:2308.10712 (Chandrayaan-3 preset)
+- K. Durga Prasad et al. (2024), Chandrayaan-3 alternate landing site: pre-landing characterisation, Current Science 126(7), 774–780, arXiv:2308.10712 (Chandrayaan-3 preset; the 7° value is the site's reported overall slope, a selection criterion rather than a lander tolerance)
 - LROC NAC region of interest CABEUSPKLO2: https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO2
 - NASA Vertical Solar Array Technology (VSAT): NTRS 20240004914 (Belbin, Mills, Chan 2024); the 9.75 m mast height in our preset comes from trade press (Aerospace Manufacturing and Design)
 - astronomy-engine (Don Cross, MIT): https://github.com/cosinekitty/astronomy · Skyfield (Brandon Rhodes, MIT): https://rhodesmill.org/skyfield/ · three.js (MIT): https://threejs.org · React: https://react.dev · Vite: https://vitejs.dev

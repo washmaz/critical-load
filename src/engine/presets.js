@@ -30,8 +30,8 @@ export const PRESETS = {
   chandrayaan3: {
     label: 'ISRO Chandrayaan-3',
     slopeMaxDeg: 7, slopeMode: 'ldsm',
-    source: { title: 'Amitabh et al. 2023, Chandrayaan-3 landing site characterisation (arXiv:2308.10712)', url: 'https://arxiv.org/abs/2308.10712' },
-    notes: ['Slope under 7 deg.', 'Chandrayaan-3 targeted a 4 km x 2.4 km landing area (a rectangle): set the ellipse yourself.'],
+    source: { title: 'Durga Prasad et al. 2024, Chandrayaan-3 alternate landing site: pre-landing characterisation, Curr. Sci. 126(7) (arXiv:2308.10712)', url: 'https://arxiv.org/abs/2308.10712' },
+    notes: ['Slope under 7 deg: the paper reports the alternate site\'s overall slope as under 7 deg, meeting the criteria used to select the primary site; it is a site-selection value, not a published lander tolerance.', 'The alternate landing area was about 4 km x 2.4 km (a rectangle): set the ellipse yourself.'],
   },
 };
 
