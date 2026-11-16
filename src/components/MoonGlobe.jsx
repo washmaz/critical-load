@@ -37,7 +37,7 @@ function latLonOf(p) {
 }
 const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export default function MoonGlobe({ sites, statusById = {}, currentId, custom, onPick, onPickPoint }) {
+export default function MoonGlobe({ sites, statusById = {}, currentId, custom, onPick, onPickPoint, focusKey = 0, currentStatus, lead }) {
   const boxRef = useRef(null);
   const canvasRef = useRef(null);
   const readoutRef = useRef(null);
@@ -45,6 +45,7 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
   const customRef = useRef(null);
   const api = useRef(null);
   const [layer, setLayer] = useState('moonkit');
+  const [layersOpen, setLayersOpen] = useState(false);
   const [hoverId, setHoverId] = useState(null);
   const [failed, setFailed] = useState(null);
   const [loadPct, setLoadPct] = useState(0);
@@ -357,13 +358,17 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
   // ---- smooth fly to the selected site (from the dropdown, the polar map, the tables, or a pin) ----
   const target = currentId === 'custom' ? (custom ? [custom.lat, custom.lon] : null) : (() => { const s = sites.find((x) => x.id === currentId); return s ? [s.lat, s.lon] : null; })();
   const firstFly = useRef(true);
+  const lastFocus = useRef(focusKey);
   useEffect(() => {
     if (!api.current || !target) return;
     const v = api.current.view;
     if (firstFly.current) { firstFly.current = false; v.lat = target[0]; v.lon = target[1]; api.current.redraw(); return; }
-    if (currentId === 'custom' && !(custom && custom.name)) return; // a clicked spot: don't move the globe under the cursor (named places do fly)
-    api.current.flyTo(target[0], target[1], Math.min(v.dist, DIST_HOME));
-  }, [currentId, target && target[0], target && target[1]]);
+    if (currentId === 'custom' && !(custom && custom.name) && focusKey === lastFocus.current) return; // a clicked spot: don't move the globe under the cursor (named places and list picks do fly)
+    const listPick = focusKey !== lastFocus.current;
+    lastFocus.current = focusKey;
+    // A pick from the site list always brings that exact spot to the centre at a close, site-level zoom, wherever the view was.
+    api.current.flyTo(target[0], target[1], listPick ? (Math.abs(target[0]) > 80 ? 1.35 : 2.2) : Math.min(v.dist, DIST_HOME));
+  }, [currentId, focusKey, target && target[0], target && target[1]]);
 
   useEffect(() => { if (api.current) api.current.loadLayer(layer); }, [layer]);
 
@@ -393,26 +398,31 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
                 onFocus={() => setHoverId(s.id)} onBlur={() => setHoverId(null)}
                 aria-label={`${s.name}${st ? `: ${st}` : ''}`} title={`${s.name}${st ? `: ${st}` : ''}`}>
                 <i />
-                {(sel || hoverId === s.id) && <span>{short(s.name)}{st && !sel ? ` · ${st}` : ''}</span>}
+                {(sel || hoverId === s.id) && <span>{short(s.name)}{sel && currentStatus ? <em className={`gbadge ${currentStatus === 'GO' ? 'go' : currentStatus === 'CAUTION' ? 'caution' : 'nogo'}`}>{currentStatus}</em> : st ? ` · ${st}` : ''}</span>}
               </button>
             );
           })}
-          {custom && <div ref={customRef} className="gpin gcustom" style={{ visibility: 'hidden' }}><b /><span>{custom.name || 'Your point'}</span></div>}
+          {custom && <div ref={customRef} className="gpin gcustom" style={{ visibility: 'hidden' }}><b /><span>{custom.name || 'Your point'}{currentStatus && <em className={`gbadge ${currentStatus === 'GO' ? 'go' : currentStatus === 'CAUTION' ? 'caution' : 'nogo'}`}>{currentStatus}</em>}</span></div>}
         </div>
         <div className="globe-tools">
-          <div className="seg" role="group" aria-label="Globe imagery">
-            {Object.entries(LAYERS).map(([k, v]) => <button key={k} className={layer === k ? 'on' : ''} aria-pressed={layer === k} onClick={() => setLayer(k)}>{v.label}</button>)}
+          {lead}
+          <div className="layers">
+            <button className="layers-btn" aria-expanded={layersOpen} aria-haspopup="true" onClick={() => setLayersOpen((x) => !x)} title="Map imagery">
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 8.5 12 14l10-5.5L12 3Z M2 13l10 5.5L22 13 M2 17.5 12 23l10-5.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+              <span>{LAYERS[layer].label}</span>
+            </button>
+            {layersOpen && <div className="layers-menu" role="menu">
+              {Object.entries(LAYERS).map(([k, v]) => <button key={k} role="menuitemradio" aria-checked={layer === k} className={layer === k ? 'on' : ''} onClick={() => { setLayer(k); setLayersOpen(false); }}>{v.label}</button>)}
+            </div>}
           </div>
-          <div className="globe-btns">
+        </div>
+        <div className="globe-nav" role="group" aria-label="Map navigation">
+          <button onClick={() => go(-89, api.current ? api.current.view.lon : 0)} title="Look straight at the south pole">South pole</button>
+          {(cur || custom) && <button onClick={() => { const t = cur || custom; api.current && api.current.flyTo(t.lat, t.lon, Math.abs(t.lat) > 80 ? 1.35 : 2.2); }} title="Fly back to the selected site">Selected site</button>}
+          <div className="zoom-v">
             <button onClick={() => api.current && api.current.zoom(0.75)} aria-label="Zoom in" title="Zoom in">+</button>
             <button onClick={() => api.current && api.current.zoom(1.33)} aria-label="Zoom out" title="Zoom out">−</button>
           </div>
-        </div>
-        <div className="globe-views" role="group" aria-label="Jump to">
-          <button onClick={() => go(0, 0)}>Near side</button>
-          <button onClick={() => go(0, 180)}>Far side</button>
-          <button onClick={() => go(-89, api.current ? api.current.view.lon : 0)}>South pole</button>
-          {cur && <button onClick={() => go(cur.lat, cur.lon)}>Selected site</button>}
         </div>
         {loadPct > 0 && loadPct < 100 && <div className="globe-load" aria-hidden="true"><div style={{ width: `${loadPct}%` }} /></div>}
         {failed && <p className="globe-fail">{failed}</p>}
@@ -421,8 +431,7 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
         <span><b>LAT / LON</b> <span ref={readoutRef}>--</span></span>
         <span className="legend"><i style={{ background: COLOR.GO }} />GO <i style={{ background: COLOR.CAUTION }} />CAUTION <i style={{ background: COLOR['NO-GO'] }} />NO-GO <i className="ring80" />NASA terrain</span>
       </div>
-      <p className="hint small">Drag to turn the Moon (far side included), scroll or pinch to zoom, click a pin to load a site, or click anywhere to test that point.
-        Inside the dashed 80°S ring the app uses real NASA LOLA terrain; elsewhere it uses a smooth Moon.</p>
+      <p className="hint small">Drag to rotate · scroll to zoom · click a pin or any point to select it. Inside the dashed 80° S ring: NASA LOLA terrain; outside: smooth Moon.</p>
       <p className="hint tiny">Imagery: {LAYERS[layer].credit}{LAYERS[layer].kit ? '' : ', via NASA Solar System Treks (Moon Trek)'}. South of 80°S: NASA LRO LOLA 80–90°S relief (Barker et al. 2023), same as the South pole map. 3D: three.js.</p>
     </div>
   );

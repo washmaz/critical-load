@@ -1,3 +1,4 @@
+import { fmtLat, fmtLon } from '../format.js';
 import React, { useState } from 'react';
 import { fmtDur, fmtPct, fmtShortUTC } from '../format.js';
 import { scienceFor } from '../engine/science.js';
@@ -33,7 +34,7 @@ export function compareCSV(rows, landing, opts) {
   document.body.appendChild(a); a.click(); a.remove();
 }
 
-function SiteCompare({ rows, currentId, onPick, landing, opts }) {
+function SiteCompare({ rows, currentId, onPick, onOpen = onPick, landing, opts }) {
   const [filter, setFilter] = useState('pole');
   const [picked, setPicked] = useState([]);
   const shown = rows.filter((r) => inFilter(filter, r));
@@ -60,6 +61,7 @@ function SiteCompare({ rows, currentId, onPick, landing, opts }) {
           {side.map((r) => { const e = extras(r); const m = r.metrics; return (
             <div key={r.site.id} className={`sbs ${cls(r.verdict.status)}`}>
               <p className="sbs-name">{r.site.name}</p>
+              <p className="sbs-coords mono">{fmtLat(r.site.lat)} · {fmtLon(r.site.lon)}</p>
               <span className={`pill ${cls(r.verdict.status)}`}>{r.verdict.status}</span>
               <dl>
                 <dt>Sunlit</dt><dd>{fmtPct(m.sunlitPct)}</dd>
@@ -70,7 +72,7 @@ function SiteCompare({ rows, currentId, onPick, landing, opts }) {
                 <dt>Nearest ice trap</dt><dd>{e.ice != null ? `${e.ice} km` : '—'}</dd>
                 <dt>NASA avg sunlit</dt><dd>{e.nasaSun != null ? `${Math.round(e.nasaSun)}%` : '—'}</dd>
               </dl>
-              <button className="link" onClick={() => onPick(r.site.id)}>Open this site</button>
+              <button className="primary" onClick={() => onOpen(r.site.id)}>Open this site</button>
             </div>); })}
         </div>
       )}
