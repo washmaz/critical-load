@@ -827,7 +827,7 @@ function About() {
         <li><b>Check the team limits.</b> Longest dark stretch vs battery, longest comms gap vs limit, slope vs lander limit.</li>
         <li><b>Give the verdict.</b> NO-GO if the battery runs out, CAUTION if Earth is out of view too long, otherwise GO.</li>
       </ol>
-      <a className="about-pdf" href="/critical-load-guide.pdf" target="_blank" rel="noreferrer">Comprehensive guide (PDF, 22 pages) ↗</a>
+      <a className="about-pdf" href="/critical-load-guide.pdf" target="_blank" rel="noreferrer">User and Technical Guide (PDF) ↗</a>
       <p className="about-more">First-pass screening, not a certified tool. Full method, validation and sources:{' '}
         <a href="https://github.com/washmaz/critical-load/blob/main/METHOD.md" target="_blank" rel="noreferrer">METHOD.md</a>
         {' · '}<a href="https://github.com/washmaz/critical-load#readme" target="_blank" rel="noreferrer">README</a></p>
