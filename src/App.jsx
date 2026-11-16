@@ -434,6 +434,15 @@ export default function App() {
                     <h3>Sky plot: Sun and Earth over the real horizon</h3>
                     <p className="sub">View straight up from the landing site; north at the top. The jagged outer ring is the terrain horizon. The Sun's path is solid, Earth's is dashed. Press play to step through the stay and watch them pass behind the terrain.</p>
                   </div>
+                  {shownHasTerrain && (
+                    <div className="hero-switch sky-switch">
+                      <div className="terrain-switch" role="group" aria-label="Horizon model">
+                        <button className={!s.terrain ? 'on' : ''} aria-pressed={!s.terrain} onClick={() => set({ terrain: false })}>Smooth Moon</button>
+                        <button className={s.terrain ? 'on' : ''} aria-pressed={s.terrain} onClick={() => set({ terrain: true })}>Real NASA terrain</button>
+                      </div>
+                      {!terrainOn && <p className="hero-flip">Smooth Moon has no hills, so no terrain shadow. Switch to Real NASA terrain to see the ridge hide the Sun.</p>}
+                    </div>
+                  )}
                   <SkyDome sun={sun} earth={earth} sunPath={sunPath} earthPath={earthPath} margin={s.marginDeg}
                     zoom={zoom} onToggleZoom={() => setZoomPref(!zoom)} terrain={site.terrain} />
                   <TimeBar t0={series.t[i0]} t1={series.t[i1]} value={tNow} onChange={setScrub} />

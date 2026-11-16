@@ -1075,3 +1075,6 @@ details.module[open] > summary::before { transform: rotate(90deg); }
 .globe-nav > button { width: 100%; }
 /* QA fix: keep the header (tabs, Load demo) usable while How it works is open */
 .modal-back { top: var(--hdr, 116px); z-index: 25; padding-top: 24px; }
+
+/* step 4: terrain switch above the sky plot (shadow fix) */
+.sky-switch { margin: 0 0 14px; padding-top: 0; border-top: 0; }
