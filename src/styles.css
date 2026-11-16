@@ -1068,17 +1068,8 @@ details.module[open] > summary::before { transform: rotate(90deg); }
 .zoom-v button + button { border-top: 1px solid var(--line2); }
 .zoom-v button:hover { background: rgba(255,255,255,.07); }
 .stage-bg .globe-nav { right: 248px; bottom: 16px; }
-/* landing ellipse: the setup panel leads, the outputs column is narrower */
-.sim2-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.sim2-form { max-width: none; flex: none; }
-.sim2-out { flex: none; }
-.sim2-form .sim2-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.sim2-form .sim2-folds { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; align-items: start; }
 @media (max-width: 900px) {
-  .sim2-cols { grid-template-columns: minmax(0, 1fr); }
-  .sim2-form .sim2-folds, .sim2-form .sim2-stack { grid-template-columns: minmax(0, 1fr); }
   .stage-bg .globe-nav { right: 12px; bottom: 12px; }
   .brand-team { display: none; }
 }
 .globe-nav > button { width: 100%; }
-.sim2-out .assumptions > summary { font-size: 14px; font-weight: 600; color: var(--txt2, #d4d4d8); }
