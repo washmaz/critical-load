@@ -25,6 +25,7 @@ async function evaShare(lat, lon, radiusKm, limitDeg) {
 
 function LandingSim({ site, landing, appOpts, onPickPoint }) {
   const [mode, setMode] = useState('check');
+  const [nRuns, setNRuns] = useState(1000);
   const [presetId, setPresetId] = useState('nasa-artemis3');
   const P = PRESETS[presetId];
   const [acc, setAcc] = useState('strict50');
@@ -62,10 +63,10 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
     setErr(null); setRes(null);
     const ac = new AbortController(); ctrl.current = ac;
     const t0 = performance.now();
-    setRun({ done: 0, total: 1000, t0 });
+    setRun({ done: 0, total: nRuns, t0 });
     try {
       const out = await runLandingSimulation({
-        target: { lat: site.lat, lon: site.lon }, ellipse: ell, landingMs: landing, opts, n: 1000, seed: 1,
+        target: { lat: site.lat, lon: site.lon }, ellipse: ell, landingMs: landing, opts, n: nRuns, seed: 1,
         onProgress: (d, t) => setRun({ done: d, total: t, t0 }), signal: ac.signal,
       });
       const checks = [];
@@ -162,9 +163,12 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
             </details>}
           </div>
           {ell.semiMinorM > ell.semiMajorM && <p className="error">Half-width can't be larger than half-length.</p>}
+          {mode === 'check' && <div className="f"><label htmlFor="nruns">Number of touchdowns <span className="muted">(100–10,000)</span></label>
+            <input id="nruns" type="number" min="100" max="10000" step="100" value={nRuns} onChange={(e) => setNRuns(Math.max(100, Math.min(10000, Math.round(+e.target.value) || 1000)))} />
+            <p className="f-help">1,000 gives each percentage to about ±3 %. 10,000 gives about ±1 % but takes about 10× longer in your browser.</p></div>}
           {mode === 'check' && <div className="sim-go">
             {run ? <button className="sim2-run" onClick={() => ctrl.current && ctrl.current.abort()}>Cancel</button>
-                 : <button className="primary sim2-run" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run 1,000 touchdowns</button>}
+                 : <button className="primary sim2-run" onClick={start} disabled={ell.semiMinorM > ell.semiMajorM}>Run {nRuns.toLocaleString('en-US')} touchdowns</button>}
           </div>}
         </div>
 
@@ -411,11 +415,19 @@ function Assumptions({ opts, ell, acc, panelKey, panelM, appOpts, preset }) {
     ['Thermal limits', opts.thermalLimits ? `avg ≥ ${opts.thermalLimits.minAvgK ?? '–'} K, max ≤ ${opts.thermalLimits.maxSurfaceK ?? '–'} K` : 'none (report only)', opts.thermalLimits ? 'Your setting' : 'NASA publishes no landing-site limit', 'Thermal engineering'],
     ['Sun / Earth "up" means', `centre more than ${opts.marginDeg}° above the terrain`, 'Your setting (centre rule; ESA\'s 50 %-of-disc rule is the 0° case)', OWNERS.margin],
   ];
+  // Basis: "Published source" when the value comes from a cited NASA/ESA/ISRO document or dataset, "Your input" when the user typed or picked it,
+  // "Team choice" when it is a modelling convention our team adopted (stated openly so reviewers can challenge it).
+  const basis = (c) => /^Your setting|^Uncertainty margin|^Your input/.test(c) ? 'Your input' : /NASA|ESA|ISRO|PGDA|LDSM|Preset/.test(c) ? 'Published source' : 'Team choice';
+  const fixed = [
+    ['Landing accuracy read as', '99.7 % (3-sigma) circle', 'Team choice: NASA gives "within 100 m" without a confidence level', 'Team choice', OWNERS.accuracy],
+    ['Observer height for the horizon', '2 m above the ground', 'Team choice: typical lander deck / array height', 'Team choice', OWNERS.panel],
+  ];
+  const all = [...rows.map(([a, b, c, d]) => [a, b, c, basis(c), d]), ...fixed];
   return (
     <details className="assumptions">
-      <summary>Assumptions in this run and who owns them ({rows.length})</summary>
-      <table className="sim-table"><thead><tr><th>Input</th><th>Value</th><th>Where it comes from</th><th>Owner</th></tr></thead>
-        <tbody>{rows.map(([a, b, c, d]) => <tr key={a}><td>{a}</td><td className="mono">{b}</td><td className="small">{c}</td><td className="small">{d}</td></tr>)}</tbody></table>
+      <summary>Assumptions in this run ({all.length}): source, your input or team choice</summary>
+      <table className="sim-table"><thead><tr><th>Input</th><th>Value</th><th>Basis</th><th>Where it comes from</th><th>Owner</th></tr></thead>
+        <tbody>{all.map(([a, b, c, k, d]) => <tr key={a}><td>{a}</td><td className="mono">{b}</td><td><span className={`basis ${k === 'Team choice' ? 'team' : ''}`}>{k}</span></td><td className="small">{c}</td><td className="small">{d}</td></tr>)}</tbody></table>
       <p className="hint small">Not modelled yet, so a real review would still need: boulders smaller than NASA's 5 m map pixels (5 m site maps cover 27 boxes; elsewhere the limit is 80 m),
         the descent opportunities set by the Gateway orbit (NASA: one every ~6.5 days), and approach-path lighting (only the Sun at touchdown is checked).</p>
     </details>

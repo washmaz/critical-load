@@ -40,14 +40,14 @@ export function TeamModules({ role = 'all', inp, setField }) {
         <fieldset key={t} className="module">
           <legend>{TEAMS[t].label}</legend>
           <p className="module-sub">Ranked on: {TEAMS[t].criterion.charAt(0).toLowerCase() + TEAMS[t].criterion.slice(1)}.</p>
-          {FIELDS[t].map(([k, label]) => (
+          {FIELDS[t].filter(([k]) => k !== 'slipDays').map(([k, label]) => (
             <div key={k} className="mod-field">
               {k === 'relay'
                 ? <label className="check"><input type="checkbox" checked={!!inp[t][k]} onChange={(e) => setField(t, k, e.target.checked)} />{label}</label>
                 : <><label htmlFor={`mod-${t}-${k}`}>{label}</label>
                   <input id={`mod-${t}-${k}`} type={k === 'slopeBaselineM' ? 'text' : 'number'} inputMode="decimal" value={inp[t][k] ?? ''} placeholder="none"
                     onChange={(e) => setField(t, k, k === 'slopeBaselineM' ? (e.target.value === 'ldsm' ? 'ldsm' : num(e.target.value) ?? 100) : num(e.target.value))} /></>}
-              <span className="mod-help">{HELP[k]}{VERDICT_KEYS.has(k) && <span className="tag">Changes the verdict</span>}</span>
+              <span className="mod-help">{HELP[k]}{VERDICT_KEYS.has(k) && <span className="tag">Sets the verdict</span>}</span>
               {k === 'stayDays' && (
                 <div className="mod-presets">
                   {[7, 14].map((d) => <button key={d} type="button" className={inp.mission.stayDays === d ? 'on' : ''} onClick={() => setField('mission', 'stayDays', d)}>{d} days{d === 7 ? ' (default)' : ''}</button>)}

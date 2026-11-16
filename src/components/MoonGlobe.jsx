@@ -409,8 +409,6 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
           </div>
         </div>
         <div className="globe-views" role="group" aria-label="Jump to">
-          <button onClick={() => go(0, 0)}>Near side</button>
-          <button onClick={() => go(0, 180)}>Far side</button>
           <button onClick={() => go(-89, api.current ? api.current.view.lon : 0)}>South pole</button>
           {cur && <button onClick={() => go(cur.lat, cur.lon)}>Selected site</button>}
         </div>
@@ -421,8 +419,7 @@ export default function MoonGlobe({ sites, statusById = {}, currentId, custom, o
         <span><b>LAT / LON</b> <span ref={readoutRef}>--</span></span>
         <span className="legend"><i style={{ background: COLOR.GO }} />GO <i style={{ background: COLOR.CAUTION }} />CAUTION <i style={{ background: COLOR['NO-GO'] }} />NO-GO <i className="ring80" />NASA terrain</span>
       </div>
-      <p className="hint small">Drag to turn the Moon (far side included), scroll or pinch to zoom, click a pin to load a site, or click anywhere to test that point.
-        Inside the dashed 80°S ring the app uses real NASA LOLA terrain; elsewhere it uses a smooth Moon.</p>
+      <p className="hint small">Drag to rotate · scroll to zoom · click a pin or any point to select it. Inside the dashed 80° S ring: NASA LOLA terrain; outside: smooth Moon.</p>
       <p className="hint tiny">Imagery: {LAYERS[layer].credit}{LAYERS[layer].kit ? '' : ', via NASA Solar System Treks (Moon Trek)'}. South of 80°S: NASA LRO LOLA 80–90°S relief (Barker et al. 2023), same as the South pole map. 3D: three.js.</p>
     </div>
   );
