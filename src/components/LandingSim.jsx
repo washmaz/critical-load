@@ -57,8 +57,10 @@ function LandingSim({ site, landing, appOpts, onPickPoint }) {
     const Q = PRESETS[id];
     if (Q.slopeMaxDeg != null) setSlopeMax(Q.slopeMaxDeg);
     if (Q.slopeMode != null) setSlopeMode(Q.slopeMode);
+    // Refill anything a previous "My own limits" left empty, so a preset is always runnable.
     if (Q.accuracy) pickAcc(Q.accuracy);
-    if (Q.panelHeight) setPanelKey(Q.panelHeight);
+    else if (!(num(ell.semiMajorM) && num(ell.semiMinorM))) pickAcc('strict50');
+    setPanelKey(Q.panelHeight || (panelKey === 'custom' && !num(panelCustom) ? 'esa2' : panelKey));
   };
   const num = (x) => x !== '' && x != null && Number.isFinite(+x);
   const missing = [!num(slopeMax) && 'max slope', !(num(ell.semiMajorM) && num(ell.semiMinorM)) && 'ellipse size', panelKey === 'custom' && !num(panelCustom) && 'array height'].filter(Boolean);
