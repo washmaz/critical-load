@@ -2,7 +2,7 @@
 
 **Team Critical Load: NASA Space Apps Challenge 2026 (Nov 14–15), Oshawa local event**
 
-> Submission deadline: **Sunday, Nov 15, 11:59 p.m.** local time (team target **6:00 p.m.**). Click **Submit for Judging** on the Space Apps Project tab. Saving is not submitting.
+> Submission deadline: **Sunday, Nov 15, 11:59 p.m.** local time. Click **Submit for Judging** on the Space Apps Project tab. Saving is not submitting.
 
 ## Team
 - Washma ([@washmaz](https://github.com/washmaz)): project lead, testing, demo, submission
@@ -13,20 +13,21 @@
 Lunar Landing Site Navigator
 
 ## High-Level Summary
-Lunar Landing Site Navigator is a free web app that answers the two questions every lander at the Moon's south pole depends on: will it have sunlight for power, and can it see Earth to radio home? Pick a site and a date, and the app shows the Sun and Earth against the real horizon, with a plain GO / CAUTION / NO-GO verdict. At the south pole, where Artemis plans to land, the Sun skims the horizon, so hills and crater rims decide everything. Using NASA LOLA terrain, the app shows how a site that looks sunny on a smooth Moon can be NO-GO in reality, and how sites a few kilometres apart differ. It also simulates 1,000 landings around a target to estimate the chance of a safe touchdown, and can search nearby for better spots. NASA's existing tools are powerful but built for experts; ours gives students, educators and early-stage planners the same answers in seconds, with Sun and Earth positions checked against NASA JPL Horizons (750 points, within 0.007°).
+Lunar Landing Site Navigator is a free web app that answers the two questions every lander at the Moon's south pole depends on: will it have sunlight for power, and can it see Earth to radio home? Pick a site and a date, and the app shows the Sun and Earth against the real horizon, with a plain GO / CAUTION / NO-GO verdict. At the south pole, where Artemis plans to land, the Sun skims the horizon, so hills and crater rims decide everything. Using NASA LOLA terrain, the app shows how a site that looks sunny on a smooth Moon can be NO-GO in reality, and how sites a few kilometres apart differ. It also simulates 1,000 landings around a target to estimate the chance of a safe touchdown, and can search nearby for better spots. Built for mission planners: when a launch slip or hardware change moves the landing date or site, it reruns the power, communication and landing checks in seconds, work that today means stepping through Quickmap, Moon Trek and JPL Horizons by hand. It is a fast first check before detailed analysis, with Sun and Earth positions checked against NASA JPL Horizons (750 points, within 0.007°). Its plain verdicts also help educators show why the south pole is so hard.
 
 ## Project Demo
-_Link (public, no login): 30-second video with English subtitles._
+_Link (public, no login): demo video FINAL v5, 28.3 s, burned-in English subtitles, AI voice-over (text-to-speech, Kokoro-82M; labelled on screen), no logos, no music. Recorded as live app footage on main acef1b2 (same code as the live site, 22b002f)._
 
-### Demo script (30 s, LOCKED: one moment only)
-| Time | On screen | Voice-over / subtitle |
+### Demo transcript (FINAL v5, in order)
+| # | On screen (live app) | Voice-over = subtitle |
 | --- | --- | --- |
-| 0:00 | Team name + Moon south pole (no NASA logos) | "NASA wants to land astronauts at the Moon's south pole." |
-| 0:05 | App: pick Connecting ridge + 2026-11-15 21:00 UTC | "We built a weather app for the Moon. Pick a spot and a date." |
-| 0:10 | Flat Moon: CAUTION, Sun up | "On a flat Moon, this spot looks sunny." |
-| 0:15 | Toggle real terrain: NO-GO, horizon silhouette over the Sun + "Sun hidden by terrain" marker | "With NASA's real terrain, the hills block the Sun. NO-GO." |
-| 0:22 | Text card | "Built on NASA LOLA terrain. Checked against JPL Horizons." |
-| 0:27 | App link + team name | "Critical Load. Simple answers for the next giant leap." |
+| 1 | Title over the landing page, 3D Moon rotating | "Critical Load tells mission planners if a Moon landing site and date is GO, CAUTION or NO-GO." |
+| 2 | 3D Moon flies in to Connecting ridge, 2026-11-15 21:00 UTC, Smooth Moon: CAUTION | "On a smooth Moon, Connecting ridge looks like CAUTION." |
+| 3 | Real NASA terrain on: NO-GO; sky plot shows the terrain horizon over the Sun, "Sun hidden by terrain" | "But with NASA LOLA terrain, it flips to NO-GO. The ridge hides the Sun." |
+| 4 | Team criteria cards (Mission planning, Power, Comms, Landing, Thermal, Science) → Rank sites | "Power, comms, landing and science teams each set their own limits, all anchored to NASA's Artemis III rules." |
+| 5 | Landing ellipse: 1,000 Monte Carlo touchdowns finish, then the scatter and failure reasons | "Then 1,000 Monte Carlo touchdowns show where the lander will really land." |
+| 6 | Rotating 3D Moon with caption bar | "Every Sun position is checked against NASA JPL Horizons." |
+| 7 | End | "Critical Load. Know before you land." |
 
 ## Final Project
 - Live app: https://critical-load.vercel.app
@@ -39,10 +40,10 @@ _Link (public, no login): 30-second video with English subtitles._
 - How it works: Sun/Earth positions come from NASA JPL DE421 (precomputed for preset sites through 2028) with a live astronomy-engine fallback (IAU WGCCRE 2015 lunar orientation) for any site/date; the two agree within 0.013°. Positions are converted to the local East-North-Up frame at the site (mean radius 1737.4 km, so Earth's parallax is included). For sites south of 80°S, a terrain horizon is computed from the NASA LOLA 80 m/pixel south-pole elevation map: 720 directions (0.5° apart), ray-marched from 240 m out to the edge of the map, with the observer at the **solar-array height** (presets: ESA 2 m / 1.2 m from De Rosa et al. 2012, NASA VSAT 9.75 m as reported in trade press, or custom). The Sun or Earth counts as visible only when its centre is above that horizon. Slope is evaluated over a 100 m baseline (NASA Artemis wording) or from the NASA LOLA slope map.
 - Landing simulation: touchdowns are scattered around the target with 50 m (strict, default) or 100 m accuracy. **Assumption:** NASA does not state a probability for "land within 100 m"; we assume 99.7 % of landings fall within that distance, which for a zero-mean 2-D scatter means a half-axis of 3.41σ (not 3σ, which holds only 98.9 %). Each site is also checked against the Artemis III site rules (within 6° of the pole, lit for the whole stay, slope < 10° over 100 m using NASA 5 m elevation where mapped); a site that breaks one is marked NO-GO even if every touchdown is safe. Of the listed sites, only Mons Mouton Plateau passes, with 100 % safe touchdowns for 7- and 14-day stays (METHOD.md section 10).
 - Known limits: sites north of 80°S use a smooth-sphere horizon (and say so). Terrain detail smaller than the 80 m LOLA pixels (e.g. boulders) is not modelled. Light-time and aberration are ignored in the live fallback engine only (< 0.01°); the JPL DE421 tables include them. Visibility uses the centre of the Sun/Earth disc. Launch windows and trajectories are out of scope. The "Peak near Cabeus B" pin now sits inside NASA's LROC region for that candidate (CABEUSPKLO2, centred 83.6°S, 68.8°W; https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_ROI_CABEUSPKLO2) at our team's QA re-pick, 83.62°S, 68.60°W (it was 81.38°S, 57.54°W, about 75 km north). There, NASA PGDA gives 68.5 % sunlit and 66 % Earth in view (not permanently shadowed); our terrain model gives 69.2 % / 67.6 % over a year, slope 4.7°, and the nearest ice trap 13.54 km away (NASA PGDA LPSR 120 m tiles). The crater count is not computed for the re-picked point (it needs the full Robbins ≥ 1 km database), so the craters panel is hidden for this site. Its elevation (+4,586 m against the 1,737.4 km sphere) is higher than figures quoted in press coverage, most likely a different reference surface. NASA's own candidate regions reach slightly past 6° from the pole (Cabeus B spans 5.94–6.79°), so our strict 6° site rule can mark parts of them NO-GO.
-- Benefits: answers in seconds instead of expert software; plain-language verdicts; real NASA terrain shows why nearby sites differ; runs in any browser with no install or login; open code and a published validation table.
+- Benefits: re-checks a site or date in seconds when a schedule slips, as a first pass before NASA's detailed tools; plain-language verdicts; real NASA terrain shows why nearby sites differ; runs in any browser with no install or login; open code and a published validation table.
 - How it's creative: most site tools give one answer from one surface model. Ours shows the same site and moment on a smooth Moon and on NASA's real terrain, side by side, so you see the verdict flip and why (the Sun sits behind a ridge). It also shows how a launch slip changes the answer, and ranks sites only against every team's own limits.
 - Energy, accessibility and cost: the verdict is about energy first: whether the solar array, at a height you choose, sees the Sun, and how long until sunset. Accessibility: any browser, no install or login; plain GO / CAUTION / NO-GO with shape and colour icons; units, range and an example under every input; checked at phone width (375 px). Cost: free to use, open source, and built only on free, open NASA data.
-- What we hope to achieve: help students and educators understand why the south pole is hard, and give early-stage planners a quick first filter before detailed analysis in tools like Moon Trek or Lunar QuickMap.
+- What we hope to achieve: give mission planners and their science and engineering teams a fast, shared first check of site and date options, especially when schedules slip, before detailed analysis in Quickmap, Moon Trek or JPL Horizons. Its plain verdicts also give educators a clear way to show why the south pole is hard.
 - Stack: Vite + React (JS), client-side only; astronomy-engine; Python pipelines (numpy, pandas, rasterio, shapely, Skyfield); SVG sky dome; three.js 3D Moon globe; deployed on Vercel.
 
 ## How it works: the workflow, the maths, the decisions and the limits (one page)
@@ -77,7 +78,6 @@ Without the app, a planner checking one landing site and date pulls ephemerides,
 - **Terrain detail:** sites north of 80°S use a smooth-Moon horizon, and the app says so. Boulders smaller than 5 m are not modelled, nor anything smaller than 80 m outside NASA's 27 high-resolution site maps. The horizon starts 240 m out, so a dip smaller than that is invisible. Example: NASA flags the exact Connecting ridge pixel as permanently shadowed, while our model says about 60 % sunlit; the verdict is NO-GO either way.
 - **Visibility** uses the centre of the Sun's or Earth's disc (plus the margin). The live fallback engine ignores light-time and aberration (< 0.01°); the JPL DE421 tables include them.
 - **Our settings, not NASA's:** stay length, the 48 h comms gap and team weights. NASA states no probability for "land within 100 m", so we assume 99.7 %. Our strict 6° rule can mark parts of NASA's own candidate regions NO-GO (Cabeus B spans 5.94–6.79°). The VSAT 9.75 m mast height comes from trade press.
-- **Battery setting differs between two screens:** the single-site verdict (and the locked demo) assumes the lander can ride out up to 48 h of darkness on batteries; the Team review ranking's power criterion uses 0 h (sunlit the whole stay). So the ranking is stricter on power than the verdict. Checked in the code on main; not changed before judging.
 - **Not modelled:**
   - launch windows and trajectories
   - lighting along the approach path (only at touchdown)
@@ -119,7 +119,7 @@ Deeper: [METHOD.md](METHOD.md) (every step with sources and validation) · [DATA
 
 ## Use of AI (Super Intelligence)
 - **Claude (Anthropic):** used throughout as a tool to move faster; the idea, product decisions and final judgement were the team's. Three Claude assistants coordinated through a shared Google Drive folder (project manager, builder, tester/validator). Claude wrote and reviewed most of the code under our direction, helped build an independent re-implementation and the JPL Horizons comparison, and drafted documentation and the demo script, which we edited. Commits credit Claude.
-- The 30-second demo video is a screen recording of the real app (main 0c6266e, code = tested 32d2ab1, locked demo, no code changed), captured with Playwright in headless Chrome and edited with ffmpeg by Claude. Its voice-over is AI-generated text-to-speech (Kokoro-82M via kokoro-onnx, voice "af_heart", Apache-2.0), labelled "AI voice-over (text-to-speech)" on screen for the whole video. Subtitles are burned in (Inter font, SIL OFL). No AI-generated images or footage. No NASA logos or branding. An earlier no-voice cut (main a95e601) also exists.
+- The demo video (FINAL v5, 28.3 s) is a screen recording of the real app (main acef1b2, same code as the live site 22b002f, locked demo, no code changed), captured with Playwright in headless Chrome and edited with ffmpeg by Claude. Its voice-over is AI-generated text-to-speech (Kokoro-82M via kokoro-onnx, voice "af_heart", Apache-2.0), labelled "AI voice-over (text-to-speech)" on screen for the whole video. Subtitles are burned in (Inter font, SIL OFL). No AI-generated images or footage. No NASA logos or branding.
 
 ## Results with real terrain (smooth Moon → LOLA terrain)
 | Site | Sunlit, next 30 days | Sunlit over a year | Earth in view over a year | Slope | Nearest ice trap |
